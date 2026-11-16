@@ -10,6 +10,15 @@ CurseForge; its current packages are for testing.
 Upgrading from an experimental build clears its imported census snapshot at login;
 existing live census data and recruiting preferences are preserved.
 
+**Church → Invites now opens a unified recruiting queue.** Click **Start recruiting**
+to collect nearby unguilded players and JOIN requests together, with JOIN requests
+first. **Prepare invite** opens the command for you to use; **Next** moves on without
+sending a message. Only a fresh guild roster confirms a join. **Pause recruiting**
+keeps pending requests, stops collecting new scan candidates and suppresses ad
+reminders; its setting survives reloads. Ads remain optional and handoffs stay removed.
+The previous controls are available through **Advanced**, which explicitly restores
+the earlier workflow. See [recruiting queue checks](docs/RECRUIT-QUEUE.md) for testing.
+
 **The whole Olympus army in one window, inside World of Warcraft: Forever.**
 
 Olympus is Asmongold's guild for *World of Warcraft: Forever*: Alliance, PvP ruleset, a

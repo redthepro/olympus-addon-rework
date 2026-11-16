@@ -4068,7 +4068,7 @@ end)
 -- the officer, used to clear the saved handoff choice while the JOIN switch showed green, so the
 -- requests other members pass on were never taken. The choice is kept and takes effect once the
 -- roster loads, and after the next login.
-test("gamepad Census switches clicked before the roster loads keep taking handoffs", function()
+test("gamepad Census switches before the roster loads keep handoffs disabled", function()
 	local function Officer(saved)
 		return { saved = saved, setup = function(c) c.units.player.rank, c.units.player.rankIndex = "Titan", 1 end,
 			roster = {
@@ -4100,11 +4100,13 @@ test("gamepad Census switches clicked before the roster loads keep taking handof
 		eq(ns.rdb.recruitmentPreference[ns.me].acceptHandoffs, nil, "the scan switch keeps it too")
 		C.Advance(15)
 		assert(ns.Roster.Fresh(), "the roster has loaded")
-		eq(R.Handoff.Accepting(), true, "handoffs are taken once the roster confirms the officer")
+		eq(R.Handoff.Accepting(), false, "roster confirmation cannot restore removed handoffs")
+		eq(R.Candidates.Enabled(), true, "the selected scan remains active")
 		NoErrors(C, "Census switches before the roster")
 		local reloaded, nextNS = Session(initialPad, Officer(saved))
 		reloaded.Advance(1)
-		eq(nextNS.Recruit.Handoff.Accepting(), true, "and after the next login")
+		eq(nextNS.Recruit.Handoff.Accepting(), false, "handoffs remain disabled after login")
+		eq(nextNS.Recruit.Candidates.Enabled(), true, "the scan choice survives login")
 		NoErrors(reloaded, "Census switches after the login")
 	end
 end)
@@ -4349,8 +4351,7 @@ test("gamepad Census offer: Turn on all turns every switch on", function()
 		end
 		U.Toggle()
 		eq(U.PageId(), "census/recruitment")
-		-- (The author's ask: the handoffs marked experimental, in a short line that is never cut off.)
-		assert(assert(Row("experimental"), "the experimental line").line.text:find(L.RECRUIT_CENSUS_EXPERIMENTAL, 1, true))
+		eq(Row("experimental"), nil, "the removed handoffs must not be advertised")
 		local all = assert(Row("all"), "with every switch off, a Turn on all button")
 		eq(all.primary:GetText(), L.RECRUIT_CENSUS_ALL)
 		assert(Row("later") and Row("never"), "the two dismissals stay under it")
@@ -4365,7 +4366,7 @@ test("gamepad Census offer: Turn on all turns every switch on", function()
 		for _, line in ipairs(R.WhisperLines()) do
 			if line.text and line.text:find(L.RECRUIT_EXPERIMENTAL, 1, true) then tagged = true end
 		end
-		eq(tagged, true, "Church > Invites marks the handoffs experimental too")
+		eq(tagged, false, "Church > Invites no longer advertises handoffs")
 		eq(Row("all"), nil, "no Turn on all once a switch is on")
 		eq(assert(Row("done")).primary:GetText(), L.RECRUIT_CENSUS_DONE, "Done in its place")
 		-- 1.5.8 (the author's ask, 11-12: "Tem que ser bem claro depois da pessoa ativar"): where to stop
@@ -4448,6 +4449,7 @@ test("gamepad attended recruit candidate queue uses scoped sightings and explici
 			end
 		end
 		C.Click(assert(invite)); Refresh()
+		ClickLine(function(line) return line.id == "recruit-panel-advanced" end); Refresh()
 		ClickLine(function(line) return line.id == "recruit-whisper-toggle" end)
 		Refresh()
 		-- Keep the real ticker, with no random start spread in this scenario.
@@ -4725,6 +4727,8 @@ test("gamepad whisper recruiting: deliberate outreach and native invite copy in 
 		assert(invite and invite:IsVisible(), "Invites is in the Church tab strip")
 		C.Click(invite); C.Advance(1)
 		eq(ns.UI.PageId(), "church/invites")
+		InClick(C, assert(FindLine(function(line) return line.id == "recruit-panel-advanced" end)).onClick)
+		ns.UI.Refresh() -- this scenario exercises the preserved popup workflow
 		assert(ToggleLine().text:find(ns.L.RECRUIT_WHISPER_OFF, 1, true))
 		C.Fire("CHAT_MSG_WHISPER", "JOIN OLYMPUS", "Stranger-Realm")
 		eq(#R.requests, 0, "off by default")
@@ -5205,6 +5209,10 @@ test("gamepad public recruiting announcement: reminder dropdown, independent cha
 			end
 		end
 		C.Click(assert(invite)); ns.UI.Refresh()
+		for _, line in ipairs(R.Panel.Lines()) do
+			if line.id == "recruit-panel-advanced" then InClick(C, line.onClick); break end
+		end
+		ns.UI.Refresh() -- the legacy ad scenario keeps its original recruiting controls
 		local picker
 		for _, row in ipairs(ns.UI.SelfTestView().rows) do
 			if row:IsShown() and row.line and row.line.id == "recruit-announcement-reminder" then picker = row.filters[1] end
@@ -5404,6 +5412,7 @@ test("gamepad Church > Invites (1.5.9): sections under headings of one weight, e
 			assert(row.line.onClick, id .. " takes a click")
 			C.Click(row); U.Refresh()
 		end
+		Click("recruit-panel-advanced") -- explicitly test the preserved advanced controls
 		local SECTIONS = "recruit-section-recruiting,recruit-section-ads,recruit-section-scan,charter-help-section"
 		local headings, font = Headings()
 		eq(headings, SECTIONS, "recruiting off: every section, the Apostles' help last for a guild master")
@@ -5430,10 +5439,8 @@ test("gamepad Church > Invites (1.5.9): sections under headings of one weight, e
 		Click("recruit-candidate-toggle")
 		eq(R.Candidates.Enabled(), true, "the scan on")
 		Click("recruit-candidate-prompts")
-		Click("recruit-handoff-accept")
-		eq(R.Handoff.Accepting(), true, "handoffs taken")
-		Click("recruit-handoff-overflow")
-		eq(R.Handoff.AutoOn(), true, "the player's own waiting players offered")
+		eq(Row("recruit-handoff-accept"), nil, "no invitation handoffs")
+		eq(Row("recruit-handoff-overflow"), nil, "no overflow messages")
 		local help = assert(Row("charter-help-section"), "the Apostles' help")
 		local ask
 		for i, row in ipairs(Rows()) do if row == help then ask = Rows()[i + 1] end end
@@ -5955,3 +5962,167 @@ if not H then
 	print(("\n%d passed, %d failed"):format(passed, failed))
 	os.exit(failed == 0 and 0 or 1)
 end
+
+
+test("gamepad unified recruiting panel: priority, pause, stale actions and both input switches", function()
+	for _, initialPad in ipairs({ false, true }) do
+		local saved = Answered()
+		local C, ns = Session(initialPad, { saved = saved })
+		local R, U = ns.Recruit, ns.UI
+		local P = R.Panel
+		ns.ChurchView.page = "invites"
+		assert(U.SelectTab("church")); U.Refresh()
+		local function Row(id)
+			U.Refresh()
+			for _, row in ipairs(U.SelfTestView().rows) do
+				if row:IsShown() and row.line and row.line.id == id then return row end
+			end
+		end
+		local function Click(id) C.Click(assert(Row(id), id)); U.Refresh() end
+		local function Draft() return ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT") end
+		C.units.target = { name = "Nearby", realm = "Realm", guid = "Player-1-202" }
+		Click("recruit-panel-toggle")
+		eq(R.IsWhisperRecruiting(), true); eq(R.Candidates.Enabled(), true)
+		eq(R.Preference().panelQueue, true)
+		local near = assert(P.Current()); eq(near.name, "Nearby")
+		local sends = #(C.said or {})
+		C.Fire("CHAT_MSG_WHISPER", "JOIN", "Applicant-Realm")
+		C.Fire("CHAT_MSG_WHISPER", "JOIN", "Applicant-Realm")
+		eq(#R.requests, 1, "repeated JOIN is deduplicated")
+		local req = assert(P.Current()); eq(req.name, "Applicant-Realm", "JOIN before an untouched scan")
+		eq(Draft(), nil, "no automatic JOIN popup in unified mode")
+		R.Candidates.ObserveWho("Applicant-Realm", "", "Human")
+		eq(#P.Queue(), 2, "the same applicant's scan does not duplicate his JOIN")
+		Click("recruit-panel-prepare")
+		local draft = assert(Draft())
+		eq(draft.editBox:GetText(), "/ginvite Applicant")
+		eq((P.Status(req)), "prepared", "opening a command does not confirm joining")
+		Click("recruit-panel-toggle")
+		eq(R.IsPaused(), true); eq(Draft(), nil, "Pause closes the pending draft")
+		eq(P.Current(), req, "Pause keeps the current request")
+		eq(P.Prepare(req), false, "stale action is guarded while paused")
+		C.Fire("CHAT_MSG_WHISPER", "JOIN", "WhilePaused-Realm")
+		eq(#R.requests, 2, "JOIN intake is retained while paused")
+		R.Candidates.ObserveWho("PausedScan-Realm", "", "Human")
+		eq(#P.Queue(), 3, "pause does not collect new scans")
+		C.Switch(not initialPad); C.Advance(1)
+		eq(R.IsPaused(), true, "switching input does not resume")
+		Click("recruit-panel-toggle")
+		eq(R.IsPaused(), false)
+		Click("recruit-panel-next")
+		local nextReq = assert(P.Current()); eq(nextReq.name, "WhilePaused-Realm")
+		eq(P.Prepare(req), false, "an old action cannot prepare the previous request")
+		Click("recruit-panel-next")
+		eq(P.Current(), near)
+		C.units.target.guild = "Another Guild"
+		eq((P.Status(near)), "stale", "current sighting is checked again")
+		eq(P.Prepare(near), false)
+		Click("recruit-panel-next")
+		eq(P.Current(), nil)
+		C.units.target.guild = nil; C.Fire("PLAYER_TARGET_CHANGED")
+		eq(P.Current(), nil, "skipped candidate is not offered again in this session")
+		C.Fire("CHAT_MSG_WHISPER", "JOIN", "Nearby-Realm")
+		local ownJoin = assert(P.Current()); eq(ownJoin.name, "Nearby-Realm", "an explicit JOIN can return after a skip")
+		Click("recruit-panel-prepare"); assert(Draft()):Hide()
+		C.roster[#C.roster + 1] = { "Nearby-Realm", "Recruit", 4, 20, "Warrior", "Elwynn Forest", "", "", true, 0, "WARRIOR" }
+		ns.Roster.RequestScan(true); C.Advance(2)
+		eq((P.Status(ownJoin)), "joined", "only the refreshed roster confirms joining")
+		Click("recruit-panel-next")
+		eq(#(C.said or {}), sends, "queue, prepare, skip and pause send no messages")
+		C.Switch(initialPad); C.Advance(1)
+		Click("recruit-panel-toggle")
+		eq(R.IsPaused(), true)
+		local reload, nextNS = Session(initialPad, { saved = saved })
+		eq(nextNS.Recruit.IsPaused(), true, "Pause survives reload")
+		eq(nextNS.Recruit.Preference().panelQueue, true, "queue mode survives reload")
+		eq(nextNS.Recruit.AnnounceReminderMinutes(), 0, "Start never opts into ads")
+		C.env.CanGuildInvite = function() return false end
+		eq(P.Start(), false, "lost invite permission cannot resume")
+		assert(Row("recruit-no-invite"))
+		Check(C.ledger, "unified recruiting"); NoErrors(C, "unified recruiting")
+		NoErrors(reload, "unified recruiting reload")
+	end
+end)
+
+test("gamepad unified recruiting paste polling backs off with closed chat", function()
+	GP.Covers("chat-box")
+	local C, ns = Session(false)
+	local R = ns.Recruit
+	InClick(C, function() R.Panel.Start() end)
+	C.Fire("CHAT_MSG_WHISPER", "JOIN", "PasteTest-Realm")
+	InClick(C, function() assert(R.Panel.Prepare(R.Panel.Current())) end)
+	local draft = assert(ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"))
+	local after, polls = ns.After, 0
+	ns.After = function(delay, label, fn)
+		if label == "invite paste" then polls = polls + 1 end
+		return after(delay, label, fn)
+	end
+	C.Click(draft.extraButton)
+	C.env.ChatFrame1EditBox:Hide()
+	C.env.ACTIVE_CHAT_EDIT_BOX = nil
+	C.Advance(2)
+	assert(polls <= 10, "closed chat must not schedule 100 checks per second: " .. polls)
+	eq(draft:IsShown(), true, "closing empty chat does not dismiss the command")
+	C.Click(draft.extraButton)
+	C.env.ChatFrame1EditBox.text = "/ginvite PasteTest"
+	C.Advance(R.PASTE_STEP * 2)
+	eq(draft:IsShown(), false, "open chat still detects the paste promptly")
+	local last = polls; C.Advance(0.3)
+	eq(polls, last, "hidden draft cancels its watcher")
+	C.Switch(true); C.Advance(1)
+	InClick(C, function() assert(R.Panel.Prepare(R.Panel.Current())) end)
+	draft = assert(ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"))
+	C.Click(draft.extraButton)
+	eq(polls, last, "gamepad never starts the chat watcher")
+	C.Switch(false); C.Advance(1)
+	Check(C.ledger, "adaptive invite watcher"); NoErrors(C, "adaptive invite watcher")
+end)
+
+
+test("gamepad unified recruiting waiting states: combat, invite cooldown and paused ads", function()
+	local C, ns = Session(false)
+	local R, P = ns.Recruit, ns.Recruit.Panel
+	InClick(C, P.Start)
+	C.Fire("CHAT_MSG_WHISPER", "JOIN", "WaitingTest-Realm")
+	local req = assert(P.Current())
+	C.combat = true
+	eq((P.Status(req)), "waiting"); eq(P.Prepare(req), false)
+	for _, line in ipairs(P.Lines()) do
+		if line.id == "recruit-panel-status" then
+			assert(line.text:find(ns.L.RECRUIT_PANEL_COMBAT, 1, true), "a pending WHO cannot hide the combat reason")
+		end
+	end
+	C.combat = false
+	for i = 1, R.INVITES_PER_MINUTE do
+		InClick(C, function() assert(P.Prepare(req)) end)
+		local draft = assert(ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"))
+		C.Click(draft.extraButton); draft:Hide()
+	end
+	assert(R.AtInviteLimit())
+	local state, reason = P.Status(req)
+	eq(state, "waiting"); assert(reason:find("cooldown", 1, true))
+	eq(P.Prepare(req), false, "no further command at the local invite limit")
+	C.now = C.now + 61
+	eq((P.Status(req)), "prepared", "cooldown expires without losing the request")
+	local every, reminder = ns.Every, nil
+	ns.Every = function(seconds, label, callback)
+		if label == "recruiting reminder" then reminder = callback end
+		return every(seconds, label, callback)
+	end
+	C.channels.General = 1
+	C.env.C_ChatInfo.GetChannelInfoFromIdentifier = function(name)
+		if name == "General" then return { zoneChannelID = 11 } end
+	end
+	assert(R.SetAnnounceReminder(5)); assert(reminder)
+	P.Pause(); reminder()
+	eq(ns.Dialog.Find("OLYMPUS_RECRUIT_ANNOUNCEMENT"), nil, "paused ads never open a draft")
+	eq(R.AnnounceReminderMinutes(), 5, "Pause preserves the chosen interval")
+	InClick(C, P.Start); reminder()
+	assert(ns.Dialog.Find("OLYMPUS_RECRUIT_ANNOUNCEMENT"), "the chosen reminder works again after resume")
+	C.now = C.now + R.REQUEST_TTL + 1
+	eq((P.Status(req)), "stale", "expired requests cannot be prepared")
+	eq(P.Prepare(req), false)
+	P.Next(req)
+	eq(P.Prepare(nil), false); eq(P.Next(nil), false, "an empty queue has no action")
+	Check(C.ledger, "unified recruiting waits"); NoErrors(C, "unified recruiting waits")
+end)

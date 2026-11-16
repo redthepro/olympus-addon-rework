@@ -1972,9 +1972,6 @@ local function CensusLines(s, q, recruitment)
 			if switch.key == "ads" then hint = hint:format(Views.RecruitAdMinutes()) end
 			lines[#lines + 1] = { text = Grey(hint), center = true, wrap = true, gapAfter = true }
 		end
-		-- (1.5.8, the author's ask: the handoffs marked experimental; one short line of its own, as a
-		-- longer hint is cut off in the window, 11-12.)
-		lines[#lines + 1] = { id = "census-recruit-experimental", text = Grey(L.RECRUIT_CENSUS_EXPERIMENTAL), center = true, gapAfter = true }
 		if any then
 			lines[#lines + 1] = { id = "census-recruit-thanks", text = Gold(L.RECRUIT_CENSUS_THANKS), center = true }
 			-- (11-12, the author's: where to stop the popups, said right after turning them on.)
