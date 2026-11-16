@@ -12,7 +12,8 @@ existing live census data and recruiting preferences are preserved.
 
 **Church → Invites now opens a unified recruiting queue.** Click **Start recruiting**
 to collect nearby unguilded players and JOIN requests together, with JOIN requests
-first. Automatic popups offer the invite command to copy and paste;
+first. Automatic popups offer the invite command without taking keyboard focus
+from movement. Click the command when ready to copy and paste;
 **Prepare invite** can reopen it manually; **Next** moves on without
 sending a message. Only a fresh guild roster confirms a join. **Pause recruiting**
 keeps pending requests, stops new invite popups and scan collection, and suppresses ad

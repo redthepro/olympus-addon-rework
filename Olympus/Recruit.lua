@@ -1876,8 +1876,8 @@ function Recruit.ReleaseLimited()
 	if ReleaseLimited() then PromptReply() end
 end
 
-local function InviteDraftText(name, req, item)
-	local text = L.RECRUIT_WHISPER_INVITE_COPY:format(name)
+local function InviteDraftText(name, req, item, automatic)
+	local text = (automatic and L.RECRUIT_INVITE_CLICK_COPY or L.RECRUIT_WHISPER_INVITE_COPY):format(name)
 	local waiting = req and WaitingAfter(req) or 0
 	if waiting > 0 then text = text .. "\n\n" .. L.RECRUIT_HANDOFF_MORE:format(waiting) end
 	if Recruit.AtInviteLimit() then
@@ -1913,7 +1913,7 @@ local function AcceptRequest(req, confirmed, automatic)
 		if not to then return false end
 		if not ns.Dialog or ns.Dialog.missing then ns.Print(L.RESTART_NEEDED) return false end
 		-- The officer copies and pastes the command. Forever blocks addon-prefilled invites.
-		local draft = ns.Dialog.Show("OLYMPUS_RECRUIT_INVITE_DRAFT", InviteDraftText(to, req), nil,
+		local draft = ns.Dialog.Show("OLYMPUS_RECRUIT_INVITE_DRAFT", InviteDraftText(to, req, nil, automatic), nil,
 			{ req = req, automatic = automatic })
 		if draft and not automatic then req.invitePrepared = true end
 		if draft and Recruit.Handoff then Recruit.Handoff.LogItem("POPUP", req, automatic and "auto" or "click") end
@@ -1948,7 +1948,7 @@ function Recruit.CopyCandidateInvite(candidate, automatic)
 	if not Recruit.Candidates.Check(candidate) or not ns.Dialog or ns.Dialog.missing then return false end
 	if Recruit.Handoff and Recruit.Handoff.State(candidate) then return false end
 	if ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT") then return false end
-	local shown = ns.Dialog.Show("OLYMPUS_RECRUIT_INVITE_DRAFT", InviteDraftText(candidate.name, nil, candidate), nil,
+	local shown = ns.Dialog.Show("OLYMPUS_RECRUIT_INVITE_DRAFT", InviteDraftText(candidate.name, nil, candidate, automatic), nil,
 		{ candidate = candidate, automatic = automatic }) ~= nil
 	if shown and Recruit.Handoff then Recruit.Handoff.LogItem("POPUP", candidate, automatic and "auto" or "click") end
 	return shown
@@ -2078,7 +2078,10 @@ StaticPopupDialogs["OLYMPUS_RECRUIT_INVITE_DRAFT"] = {
 		if not ns.Gate.Allowed("chat-box") then lastInviteAt = ns.Now() end
 		box:SetText("/ginvite " .. name)
 		box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
-		if ns.Focus(box, nil, data.automatic) then box:HighlightText() end
+		-- No automatic focus, even when no editor is active: movement keys may be held.
+		-- The player clicks the command (or Prepare invite) before copying it.
+		if data.automatic then box:ClearFocus()
+		elseif ns.Focus(box) then box:HighlightText() end
 		-- Let the game's edit box copy first. Remember Ctrl at key-down because the
 		-- player can release it before C. The only handoff is opening empty chat.
 		local copying

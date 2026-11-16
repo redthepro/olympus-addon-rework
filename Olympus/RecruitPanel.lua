@@ -115,7 +115,12 @@ function P.Prepare(item, automatic)
 	local state = P.Status(item)
 	if state ~= "ready" and state ~= "prepared" then return false end
 	local draft = ns.Dialog and ns.Dialog.Find and ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT")
-	if draft then return draft.data and (draft.data.req == item or draft.data.candidate == item) or false end
+	if draft then
+		if not draft.data or (draft.data.req ~= item and draft.data.candidate ~= item) then return false end
+		-- Prepare is a deliberate click; an automatic popup itself never takes the keyboard.
+		if not automatic and ns.Focus(draft.editBox) then draft.editBox:HighlightText() end
+		return true
+	end
 	local shown = item.scanned and R.CopyCandidateInvite(item, automatic) or (not item.scanned and R.Accept(item, automatic))
 	if shown then item.invitePrepared = true; Changed() end
 	return shown == true

@@ -4819,10 +4819,14 @@ test("gamepad whisper recruiting: deliberate outreach and native invite copy in 
 		local independent = assert(ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"), "the earliest waiting JOIN opens without prior outreach")
 		local incoming = R.requests[2]
 		eq(independent.editBox:GetText(), "/ginvite Stranger")
-		assert(independent.editBox:HasFocus(), "the command can be copied immediately")
+		eq(independent.editBox:HasFocus(), false, "automatic drafts do not capture movement keys")
+		-- Model the player's deliberate click into the EditBox; W:SetFocus does not
+		-- dispatch OnEditFocusGained itself in this offline widget model.
+		InClick(C, function() independent.editBox:SetFocus(); C.Fire1(independent.editBox, "OnEditFocusGained") end)
+		assert(independent.editBox:HasFocus(), "clicking the command makes it ready to copy")
 		eq(independent.editBox.selectionStart, 0)
 		eq(independent.editBox.selectionEnd, #independent.editBox:GetText())
-		eq(incoming.invitePrepared, nil, "an automatic display does not take the request out of handoff")
+		eq(incoming.invitePrepared, nil, "an automatic display does not confirm an invitation")
 		eq(#C.said, sends + 2, "a new request never sends anything by itself")
 		local function HasQueue(line) return line.text == ns.L.JOIN_REQUESTS:format(4) end
 		ns.UI.Refresh()
@@ -6147,7 +6151,7 @@ test("gamepad unified recruiting automatic popups stay local, pause and prioriti
 		C.Advance(15.1)
 		local draft = assert(Draft(), "scan automatically offers the invite command")
 		eq(draft.editBox:GetText(), "/ginvite LocalCandidate")
-		eq(draft.editBox:HasFocus(), true, "when idle, the selected command is ready for Ctrl-C")
+		eq(draft.editBox:HasFocus(), false, "automatic popup leaves movement keys in gameplay")
 		eq(P.Current(), draft.data.candidate, "panel follows the automatically offered candidate")
 		C.Fire("CHAT_MSG_WHISPER", "JOIN", "FirstJoin-Realm")
 		C.units.nameplate2 = { name = "SecondCandidate", realm = "Realm", guid = "Player-1-206" }
@@ -6187,5 +6191,48 @@ test("gamepad unified recruiting automatic popups stay local, pause and prioriti
 		assert(nextNS.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"), "saved queue mode resumes local popups")
 		Check(C.ledger, "local recruitment popups"); NoErrors(C, "local recruitment popups")
 		Check(reloaded.ledger, "local recruitment reload"); NoErrors(reloaded, "local recruitment reload")
+	end
+end)
+
+
+test("gamepad recruit movement focus: automatic invite drafts never capture gameplay keys", function()
+	GP.Covers("popup-focus"); GP.Covers("chat-box")
+	for _, initialPad in ipairs({ false, true }) do
+		local C, ns = Session(initialPad)
+		local R, P = ns.Recruit, ns.Recruit.Panel
+		InClick(C, P.Start)
+		-- Gameplay has no editor focus. This is also the state while any movement
+		-- binding is held, including arrows, remapped keys and movement against a wall.
+		eq(C.focus, nil)
+		C.Fire("CHAT_MSG_WHISPER", "JOIN", "MovementTest-Realm")
+		local draft = assert(ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"))
+		local command = "/ginvite MovementTest"
+		eq(draft.editBox:GetText(), command)
+		for _, pad in ipairs({ initialPad, not initialPad, initialPad }) do
+			C.Switch(pad); C.Advance(0.1)
+			eq(C.focus, nil, "automatic appearance/switch never routes gameplay keys to an editor")
+			eq(draft.editBox:HasFocus(), false)
+			eq(C.chatBox, nil, "the automatic popup never opens game chat")
+		end
+		-- Even a forwarded key callback cannot open chat without deliberate focus.
+		C.env.IsControlKeyDown = function() return true end
+		InClick(C, function()
+			C.RunScript(draft.editBox, "OnKeyDown", "C")
+			C.RunScript(draft.editBox, "OnKeyUp", "C")
+		end)
+		eq(C.chatBox, nil, "unfocused Ctrl-C cannot hand movement to game chat")
+		eq(draft.editBox:GetText(), command)
+		-- Prepare reuses the already visible draft and deliberately selects it.
+		local req = assert(P.Current())
+		InClick(C, function() assert(P.Prepare(req)) end)
+		eq(ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"), draft)
+		eq(draft.editBox:HasFocus(), true, "explicit Prepare arms the copy shortcut")
+		InClick(C, function()
+			C.RunScript(draft.editBox, "OnKeyDown", "C")
+			C.RunScript(draft.editBox, "OnKeyUp", "C")
+		end)
+		if initialPad then eq(C.chatBox, nil, "gamepad still leaves native chat alone")
+		else eq(assert(C.chatBox).text, "", "only deliberate copying opens empty game chat") end
+		Check(C.ledger, "movement-safe invite focus"); NoErrors(C, "movement-safe invite focus")
 	end
 end)

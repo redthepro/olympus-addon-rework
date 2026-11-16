@@ -8,7 +8,8 @@ queue mode again. Advertising is separate and is never enabled by Start.
 
 JOINs precede untouched scanned players. A JOIN and scan for the same character
 appear once. Automatic popups are spaced at least 15 seconds apart, never replace an
-open recruiting draft, and do not take typing focus. JOINs come before scans. Each
+open recruiting draft, and never take keyboard focus automatically. Movement keys
+remain in gameplay; click the command or Prepare invite when ready to copy. JOINs come before scans. Each
 row is offered once; Prepare can reopen its existing invite dialog. The player still
 copies and sends the command or uses the game's invitation controls. Preparing is not
 evidence of an invitation sent or a player joining. Only the current guild's fresh
@@ -36,6 +37,7 @@ Run from the repository root with Bash and LuaJIT:
 
 ```sh
 OLYMPUS_TEST_FILTER='gamepad unified recruiting' bash scripts/check.sh
+OLYMPUS_TEST_FILTER='gamepad recruit movement focus' luajit tests/run.lua
 OLYMPUS_TEST_FILTER='recruit invite (review of 1.5.8)' luajit tests/run.lua
 OLYMPUS_TEST_FILTER='recruit scan (review of 1.5.8)' luajit tests/run.lua
 OLYMPUS_TEST_FILTER='recruit scan (1.5.9)' luajit tests/run.lua
@@ -67,7 +69,10 @@ are removed in a scratch copy, and pass with the fixes.
    and ad reminders should stop. Reload while paused; it should stay paused.
 5. Resume and use Skip/Next. Verify neither the candidate nor another guild member
    receives any message from these actions.
-6. Test both input modes and switches with a draft open. With gamepad, use the
+6. Hold WASD, arrow keys and custom movement bindings while an automatic draft
+   appears, including movement against a wall. The command must remain intact,
+   movement must continue, and native chat must stay closed. Click the command or
+   Prepare invite before copying. Test both input modes and switches with a draft open. With gamepad, use the
    game's own invitation controls; Olympus must not open native chat. With mouse
    and keyboard, test quick paste/Enter, closing empty chat, and copying again.
 7. Opt into an ad reminder separately, then pause. No reminder should open while

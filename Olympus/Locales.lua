@@ -8399,3 +8399,5 @@ L.RECRUIT_PANEL_EMPTY = "No candidates yet. Watch nearby players or Search more.
 L.RECRUIT_PANEL_ADVANCED = "Advanced: use previous recruiting controls"
 L.RECRUIT_PANEL_GAMEPAD = "Prepare, then invite using the game's own controls."
 L.RECRUIT_PANEL_LEGACY = "Previous recruiting mode is running. Start to use this queue."
+
+L.RECRUIT_INVITE_CLICK_COPY = "Invite %s: click the command, then Ctrl+C, Ctrl+V and Enter."
