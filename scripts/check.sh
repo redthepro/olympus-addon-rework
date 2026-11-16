@@ -25,21 +25,11 @@ done < "$lua_files"
 printf 'Checking Python syntax...\n'
 if command -v python3 >/dev/null 2>&1; then
 	py_files="$check_tmp/py-files"
-	py_dirs=(scripts tests)
-	[ ! -d backend ] || py_dirs+=(backend)
-	find "${py_dirs[@]}" -type f -name '*.py' -print0 > "$py_files"
+	find scripts tests -type f -name '*.py' -print0 > "$py_files"
 	while IFS= read -r -d '' file; do
 		# Compiled only, never run; the bytecode goes to the temporary folder, not the repository.
 		PYTHONPYCACHEPREFIX="$check_tmp/pycache" python3 -m py_compile "$file"
 	done < "$py_files"
-	if [ -d backend ]; then
-		printf 'Checking the local census companion...\n'
-		python3 -m unittest discover -s backend -v
-	fi
-	if [ -f tests/cloud-contract.py ]; then
-		printf 'Checking the Python/Lua census snapshot contract...\n'
-		python3 tests/cloud-contract.py
-	fi
 else
 	printf 'python3 not found: Python checks skipped.\n'
 fi

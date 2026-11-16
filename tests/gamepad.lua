@@ -5913,47 +5913,23 @@ test("gamepad Forever leftover channel: an older Olympus lane the game joins aft
 	assert(C.channels[ours .. "7"], "never left")
 	GP.Covers("chat-channels")
 end)
-for _, initialPad in ipairs({ false, true }) do
-	test("gamepad cloud census regression: windows fit a small viewport after either input-mode login", function()
-		local C, ns = Session(initialPad)
-		local parent = C.env.UIParent
-		parent:SetSize(500, 320)
-		local report, editor = ns.CloudCensus.Show(), ns.CloudCensus.Paste()
-		for _, frame in ipairs({ report, editor }) do
-			assert(frame:GetWidth() * frame:GetScale() <= 480, "snapshot window fits the available width")
-			assert(frame:GetHeight() * frame:GetScale() <= 300, "snapshot window fits the available height")
-		end
-		parent:SetSize(1920, 1080)
-		ns.CloudCensus.Show(); ns.CloudCensus.Paste()
-		eq(report:GetScale(), 1); eq(editor:GetScale(), 1)
-		Check(C.ledger, "cloud census viewport"); NoErrors(C, "cloud census viewport")
-	end)
-	test("gamepad cloud census: " .. (initialPad and "gamepad" or "mouse") .. " login and both switches preserve own-window import", function()
-		local C, ns = Session(initialPad)
-		GP.Covers("cloud-census")
-		local cloud = assert(ns.CloudCensus)
-		local live = ns.db.guilds
-		for _, pad in ipairs({ initialPad, not initialPad, initialPad }) do
-			C.Switch(pad); C.Advance(0.1)
-			assert(ns.UI.SelectTab("census"))
-			local census = assert(Main(C))
-			eq(census.buttons[3]:GetText(), "API census")
-			C.Click(census.buttons[3])
-			local report = assert(ns.UI.CopyFrame("cloudCensus"))
-			eq(report:IsShown(), true)
-			local editor = assert(cloud.Paste())
-			eq(editor:IsShown(), true)
-			local now = ns.Data.ServerTime()
-			editor.box:SetText("OLYC1;us;profile-us;realm;olympus;" .. tostring(now) .. ";0;250")
-			C.Click(editor.import)
-			eq(editor:IsShown(), false)
-			assert(cloud.Text():find("250 characters", 1, true))
-			eq(ns.db.guilds, live, "manual baseline never replaces live guilds")
-			cloud.Clear()
-		end
-		Check(C.ledger, "cloud census"); NoErrors(C, "cloud census")
-	end)
-end
+-- The withdrawn API experiment must not survive an upgrade or replace live census.
+test("gamepad rework migration: discard imported census and restore native census controls", function()
+    for _, pad in ipairs({ false, true }) do
+        local saved = Answered()
+        saved.cloudCensus = "OLYC2;us;profile-forever-us;normal;olympus;1800000000;1800000000;999;A"
+        local C, ns = Session(pad, { saved = saved })
+        eq(ns.db.cloudCensus, nil, "retired API snapshot removed on login")
+        eq(ns.CloudCensus, nil, "no imported overlay is loaded")
+        for _, mode in ipairs({ pad, not pad, pad }) do
+            C.Switch(mode); C.Advance(0.1)
+            assert(ns.UI.SelectTab("census"))
+            local main = assert(Main(C))
+            eq(main.buttons[3]:GetText(), ns.L.REPORT_BUG, "original census footer restored")
+        end
+        Check(C.ledger, "rework migration"); NoErrors(C, "rework migration")
+    end
+end)
 
 if MODE == "--discover" then
 	local C, ns = Boot({ discover = true, gamepad = arg and arg[2] == "gamepad" })

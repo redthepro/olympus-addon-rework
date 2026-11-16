@@ -62,9 +62,6 @@ ns.GAMEPAD_CHECKED_BUILD = 70790
 local APPROVED = "the author, 2026-10-04"
 
 ns.GAMEPAD = {
-	{ id = "cloud-census", kind = "own-window", files = { "CloudCensus.lua" },
-		guard = "own", toPad = "stays", toMouse = "nothing", safe = "keep",
-		why = "A local companion API-snapshot paste editor and report in Olympus-owned windows only. No native popup, network call, live census writer or permission change; both input modes retain the bounded editor and snapshot." },
 	{ id = "innkeeper-gossip", kind = "frame-child", files = { "InnkeeperGossip.lua" },
 		guard = "gate", toPad = "reload", toMouse = "install", safe = "off",
 		why = "An opt-in Bones row and local dialogue inside a capability-checked unprotected NPC panel; mouse only. A switch restores geometry and hides the addon choices, but native font registration and ScrollBox calls retain taint until reload. Missing native capabilities retain the Olympus dialogue." },

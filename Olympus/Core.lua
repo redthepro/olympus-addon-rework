@@ -2560,6 +2560,8 @@ ns.RegisterEvent("ADDON_LOADED", function(name)
 	-- guilds span each other (PvP and PvP 2 in the beta) share them, any other realm keeps
 	-- its own. The stores v0.7.8-0.7.10 kept per realm are merged into their group's here.
 	ns.db = db
+	-- Retire the API census experiment without changing native guild reports.
+	db.cloudCensus = nil
 	ns.realm = ns.CurrentRealm()
 	ns.group = ns.GroupOf(ns.realm, db)
 	ns.faction = ns.Faction()
@@ -3053,8 +3055,6 @@ local function Slash(input)
 			ns.Watch.Slash("tabards") -- (1.2: the Tabards are The Watch's)
 		elseif cmd == "sound" then
 			ns.SoundSlash(rest)
-		elseif cmd == "cloud" or cmd == "censusapi" then
-			ns.CloudCensus.Slash(rest)
 		elseif cmd == "alerts" then
 			ns.AlertsSlash(rest)
 		elseif cmd == "patrol" then

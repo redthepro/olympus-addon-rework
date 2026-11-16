@@ -129,7 +129,6 @@ AnswerBank.lua
 Answers.lua
 Views.lua
 CensusStats.lua
-CloudCensus.lua
 Members.lua
 Nominees.lua
 UI.lua

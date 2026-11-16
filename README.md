@@ -2,27 +2,13 @@
 
 # Olympus
 
-**CurseForge:** this fork has not been published there. The addon ZIP and desktop
-companion are separate installations; automatic census delivery is not yet
-implemented. See [installation readiness and update requirements](docs/CURSEFORGE-INSTALL.md).
-
-**Policy review:** Forever API collection is currently disabled pending official
-Blizzard endpoint documentation. The existing live addon census still works.
-API caches now expire and are deleted after 29 days without refresh. Read the
-[policy controls and operating requirements](docs/BLIZZARD-POLICY.md) before use;
-this project does not claim Blizzard approval or guaranteed ToS compliance.
-
-**Shared census:** the optional [hosted service](deploy/census/README.md) keeps API
-credentials on the guild's server and serves a copy/paste page at `/census`.
-Members do not need their own API client or the desktop companion when using it.
-Publishing the page requires its dedicated load-balancer route; this is separate
-from enabling Forever data collection.
-
-**Fork pilot: local API census.** A Windows companion can fetch Blizzard roster
-snapshots into SQLite and export them to the addon's **API census** import
-(`/oly censusapi paste`). Matching region/ruleset snapshots with recent source dates supply main Census membership counts; online presence remains live. US PvE uses the Normal ruleset. No hosted server or RDS is required. Forever support is
-disabled pending official documentation and live validation. See
-[setup and data limitations](backend/README.md) and [in-game checks](docs/CLOUD-CENSUS.md).
+**Olympus Rework:** this fork uses the original automatic in-game census.
+No desktop companion, external API setup or snapshot imports are required.
+Recruiting invite handoffs remain removed following spam feedback, and the
+recruiting guild-event sorting fix is retained. This fork is not published on
+CurseForge; its current packages are for testing.
+Upgrading from an experimental build clears its imported census snapshot at login;
+existing live census data and recruiting preferences are preserved.
 
 **The whole Olympus army in one window, inside World of Warcraft: Forever.**
 
