@@ -2,6 +2,10 @@
 
 # Olympus
 
+**CurseForge:** this fork has not been published there. The addon ZIP and desktop
+companion are separate installations; automatic census delivery is not yet
+implemented. See [installation readiness and update requirements](docs/CURSEFORGE-INSTALL.md).
+
 **Policy review:** Forever API collection is currently disabled pending official
 Blizzard endpoint documentation. The existing live addon census still works.
 API caches now expire and are deleted after 29 days without refresh. Read the

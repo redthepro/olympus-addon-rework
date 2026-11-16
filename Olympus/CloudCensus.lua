@@ -130,11 +130,14 @@ end
 function Cloud.Text()
 	Cloud.Purge()
 	local lines = {
-		"Blizzard roster snapshot - imported from the desktop companion; not authenticated by the addon.",
+		"Blizzard roster snapshot - manually imported; not authenticated by the addon.",
+		"Shared census: https://olympus-v.org/census",
+		"Members using the shared page do not need API credentials or the desktop companion.",
+		"Forever API collection is currently disabled pending official documentation; live census remains available.",
 		"Matching Forever region/ruleset counts feed Census membership; live presence stays separate.",
 		"Characters are roster entries, not unique people. No live online counts or guild permissions are supplied.",
 		"Ages are checked when this report opens. Reopen API census to refresh them.",
-		"", "Copy a snapshot in your Olympus desktop companion, then choose Paste snapshot here.", "",
+		"", "Copy a snapshot from the guild website or optional local companion, then choose Paste snapshot here.", "",
 	}
 	local raw = ns.db and ns.db.cloudCensus
 	if raw == nil then lines[#lines + 1] = "No snapshot imported."; return table.concat(lines, "\n") end

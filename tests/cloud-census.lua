@@ -8,6 +8,14 @@ local function Row(guild, fetched, modified, characters)
 		modified or 0, characters or 300 }, ";")
 end
 
+test("cloud census: setup explains shared website and optional companion without requiring player credentials", function()
+	local text = C.Text()
+	assert(text:find("https://olympus-v.org/census", 1, true))
+	assert(text:find("do not need API credentials or the desktop companion", 1, true))
+	assert(text:find("currently disabled pending official documentation", 1, true))
+	assert(text:find("guild website or optional local companion", 1, true))
+end)
+
 test("cloud census: retention deletes saved snapshots rather than only hiding them", function()
 	local previousClock, previousDB = ns.Data.ServerTime, ns.db
 	ns.Data.ServerTime = function() return NOW end
