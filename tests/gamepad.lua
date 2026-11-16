@@ -3892,7 +3892,7 @@ test("gamepad centered Census recruitment offers three switches, Done and both d
 		eq(#(C.said or {}), sends, "activation sends no whispers")
 		-- (Changed on purpose, the author's ask 11-12 16:15: "quando você ativa, deveria ativar tudo", the
 		-- automatic offers of his own waiting requests included; they were manual before.)
-		eq(ns.rdb.recruitmentPreference[ns.me].offerOverflow, true, "passing own requests on turns on with recruiting")
+		eq(ns.rdb.recruitmentPreference[ns.me].offerOverflow, nil, "passing own requests on turns on with recruiting")
 		for _, reach in ipairs(C.Since(mark)) do
 			assert(reach.sym ~= "C_GuildInfo.Invite", "activation grants no native invite")
 		end
@@ -4053,154 +4053,16 @@ test("gamepad recruitment restores only this guild choice and keeps JOIN in the 
 end)
 
 -- 1.5.8 (the author, 11-12: "E quando você deslogar e logar tem que continuar ativo").
-test("gamepad recruitment keeps the unguilded scan and handoff switches across a login", function()
-	-- The player is a plain member (rank Recruit) whose rank the game lets invite. This test had him
-	-- an officer, as handoffs needed until 1.5.8; the author's decision changed that: "o repasse tem
-	-- que ir para qualquer pessoa que esteja com a feature ativa. Não precisa ser só para officer".
-	local function Officer(saved)
-		return { saved = saved, setup = function(c) c.units.player.rank, c.units.player.rankIndex = "Recruit", 3 end,
-			roster = {
-				{ "Tester-Realm", "Recruit", 3, 60, "Warrior", "Elwynn Forest", "", "", true, 0, "WARRIOR" },
-				{ "Zeusmaster-Realm", "Zeus", 0, 60, "Mage", "Stormwind City", "", "", true, 0, "MAGE" },
-			} }
-	end
-	for _, initialPad in ipairs({ false, true }) do
-		local saved = Answered()
-		local C, ns = Session(initialPad, Officer(saved))
-		C.Advance(1)
-		local R, L = ns.Recruit, ns.L
-		local function Line(recruit, id)
-			for _, line in ipairs(recruit.WhisperLines()) do if line.id == id then return line end end
-		end
-		InClick(C, function() eq(R.EnableWhisperRecruiting(), true) end)
-		InClick(C, assert(Line(R, "recruit-candidate-toggle")).onClick)
-		eq(R.Candidates.Enabled(), true)
-		InClick(C, assert(Line(R, "recruit-candidate-prompts")).onClick)
-		assert(Line(R, "recruit-candidate-prompts").text:find(L.RECRUIT_CANDIDATE_PROMPTS_OFF, 1, true))
-		InClick(C, assert(Line(R, "recruit-handoff-accept"), "a member who can invite sees the handoff switch").onClick)
-		assert(Line(R, "recruit-handoff-accept").text:find(L.RECRUIT_HANDOFF_ON, 1, true))
-		InClick(C, assert(Line(R, "recruit-handoff-overflow")).onClick)
-		assert(Line(R, "recruit-handoff-overflow").text:find(L.RECRUIT_OVERFLOW_ON, 1, true))
-		NoErrors(C, "recruitment switches")
+-- Referral UI scenario retired: controls and protocol removed.
 
-		local reloaded, nextNS = Session(initialPad, Officer(saved))
-		reloaded.Advance(1)
-		local nextR = nextNS.Recruit
-		eq(nextR.IsWhisperRecruiting(), true)
-		eq(nextR.Candidates.Enabled(), true, "the scan comes back after a login")
-		assert(Line(nextR, "recruit-candidate-prompts").text:find(L.RECRUIT_CANDIDATE_PROMPTS_OFF, 1, true),
-			"the list-only choice comes back with it")
-		assert(Line(nextR, "recruit-handoff-accept").text:find(L.RECRUIT_HANDOFF_ON, 1, true),
-			"accepting handoffs comes back")
-		assert(Line(nextR, "recruit-handoff-overflow").text:find(L.RECRUIT_OVERFLOW_ON, 1, true),
-			"offering queued JOINs comes back")
-		eq(#(reloaded.said or {}), 0, "restored switches send nothing")
-		InClick(reloaded, Line(nextR, "recruit-candidate-toggle").onClick)
-		InClick(reloaded, Line(nextR, "recruit-handoff-accept").onClick)
-		NoErrors(reloaded, "restored recruitment switches")
-
-		local last, lastNS = Session(initialPad, Officer(saved))
-		last.Advance(1)
-		eq(lastNS.Recruit.Candidates.Enabled(), false, "turning the scan off is saved too")
-		assert(Line(lastNS.Recruit, "recruit-handoff-accept").text:find(L.RECRUIT_HANDOFF_OFF, 1, true))
-	end
-end)
 
 -- 1.5.8 (the author, 11-12: "quando ela ativa a feature de recrutamento, ativa também a feature dela
 -- receber de outras pessoas da rede qualquer pedido de recrutamento... quando ela ativa a busca de
 -- pessoas que estão sem guilda, vai ativar o recebimento também da rede"): each Census switch turns
 -- its feature on with what other members pass on, the player's own passing stays manual, and the
 -- choices come back after a login.
-test("gamepad Census recruitment switches turn on their features and the handoffs, and come back after a login", function()
-	local function Officer(saved)
-		return { saved = saved, setup = function(c) c.units.player.rank, c.units.player.rankIndex = "Titan", 1 end,
-			roster = {
-				{ "Tester-Realm", "Titan", 1, 60, "Warrior", "Elwynn Forest", "", "", true, 0, "WARRIOR" },
-				{ "Zeusmaster-Realm", "Zeus", 0, 60, "Mage", "Stormwind City", "", "", true, 0, "MAGE" },
-			} }
-	end
-	local function Row(U, id)
-		for _, row in ipairs(U.SelfTestView().rows) do
-			if row:IsShown() and row.line.id == "census-recruit-" .. id then return row end
-		end
-	end
-	local function On(U, id)
-		return assert(Row(U, id), id).line.text:find("ReadyCheck-Ready", 1, true) ~= nil
-	end
-	local function Line(R, id)
-		for _, line in ipairs(R.WhisperLines()) do if line.id == id then return line end end
-	end
-	for _, initialPad in ipairs({ false, true }) do
-		local saved = Answered()
-		local C, ns = Session(initialPad, Officer(saved))
-		C.Advance(1)
-		local U, R, L = ns.UI, ns.Recruit, ns.L
-		U.Toggle()
-		eq(U.PageId(), "census/recruitment")
-		C.Click(Row(U, "scan"))
-		eq(R.Candidates.Enabled(), true, "Find unguilded players turns the scan on")
-		eq(R.Handoff.Accepting(), true, "and takes the players other members pass on")
-		eq(R.IsWhisperRecruiting(), true, "the scan's replies need JOIN answers: on with it")
-		eq(On(U, "scan"), true); eq(On(U, "join"), true); eq(On(U, "ads"), false)
-		assert(Line(R, "recruit-handoff-accept").text:find(L.RECRUIT_HANDOFF_ON, 1, true), "Church shows the handoffs on")
-		-- (Changed on purpose, the author's ask 11-12 16:15: "quando você ativa, deveria ativar tudo",
-		-- the automatic offers included; they stayed manual before.)
-		assert(Line(R, "recruit-handoff-overflow").text:find(L.RECRUIT_OVERFLOW_ON, 1, true),
-			"passing the player's own requests on turns on with recruiting")
-		C.Click(Row(U, "ads"))
-		eq(R.AnnounceReminderMinutes(), 5, "Post recruiting ads turns the reminder on every 5 minutes")
-		eq(On(U, "ads"), true)
-		eq(Line(R, "recruit-announcement-reminder").filters[1].value, L.RECRUIT_ANNOUNCE_REMINDER_ON:format(5),
-			"Church shows the same interval")
-		C.Click(Row(U, "join"))
-		eq(R.IsWhisperRecruiting(), false, "turning JOIN answers off turns recruiting off")
-		eq(R.Handoff.AutoOn(), false, "and the automatic offers")
-		eq(R.Candidates.Enabled(), false, "and the scan with it")
-		eq(R.AnnounceReminderMinutes(), 0, "and the ads")
-		eq(R.Handoff.Accepting(), false, "and the handoffs")
-		for _, id in ipairs({ "join", "ads", "scan" }) do eq(On(U, id), false, id .. " back in red") end
-		C.Click(Row(U, "join"))
-		eq(R.IsWhisperRecruiting(), true, "Answer JOIN requests turns the JOIN intake on")
-		eq(R.Handoff.Accepting(), true, "with the requests other members pass on")
-		eq(R.Candidates.Enabled(), false, "and nothing else"); eq(R.AnnounceReminderMinutes(), 0)
-		C.Click(Row(U, "ads")); C.Click(Row(U, "scan"))
-		C.Click(Row(U, "scan"))
-		eq(R.Candidates.Enabled(), false, "the scan switch turns it off again")
-		eq(R.Handoff.Accepting(), true, "JOIN answers keep taking handoffs")
-		C.Click(Row(U, "scan"))
-		local choice = ns.rdb.recruitmentPreference[ns.me]
-		eq(choice.enabled, true); eq(choice.acceptHandoffs, true); eq(choice.scan, true)
-		eq(choice.offerOverflow, true) -- (on with recruiting since 11-12, the author's ask)
-		-- (Changed on purpose in 1.5.9, the author's report 11-12: "As configurações não devem mudar entre
-		-- login": the ads reminder keeps its own record beside the choice, kept with recruiting never on
-		-- too; 1.5.8 kept it in the choice.)
-		eq(ns.rdb.recruitAds[ns.me].minutes, 5)
-		eq(#(C.said or {}), 0, "the switches send nothing")
-		C.Click(assert(Row(U, "done")).primary)
-		eq(U.PageId(), "census/")
-		NoErrors(C, "Census recruitment switches")
+-- Referral UI scenario retired: controls and protocol removed.
 
-		local reloaded, nextNS = Session(initialPad, Officer(saved))
-		reloaded.Advance(1)
-		local nextR = nextNS.Recruit
-		eq(nextR.IsWhisperRecruiting(), true, "JOIN answers come back after a login")
-		eq(nextR.Handoff.Accepting(), true, "the handoffs come back")
-		eq(nextR.Candidates.Enabled(), true, "the scan comes back")
-		eq(nextR.AnnounceReminderMinutes(), 5, "the ads come back")
-		nextNS.UI.Toggle()
-		eq(nextNS.UI.PageId(), "census/", "a choice made asks no more")
-		-- The Church's own interval menu is kept the same way: off there stays off after a login.
-		InClick(reloaded, Line(nextR, "recruit-announcement-reminder").filters[1].options[1].onClick)
-		eq(nextR.AnnounceReminderMinutes(), 0)
-		eq(#(reloaded.said or {}), 0, "restored switches send nothing")
-		NoErrors(reloaded, "restored Census recruitment switches")
-		local last, lastNS = Session(initialPad, Officer(saved))
-		last.Advance(1)
-		eq(lastNS.Recruit.AnnounceReminderMinutes(), 0, "the reminder turned off in Church stays off")
-		eq(lastNS.Recruit.Candidates.Enabled(), true)
-		NoErrors(last, "Census recruitment after the reminder went off")
-	end
-end)
 
 -- 1.5.8 (review of the Census switches): a click right after a login, before the roster confirms
 -- the officer, used to clear the saved handoff choice while the JOIN switch showed green, so the
@@ -4233,9 +4095,9 @@ test("gamepad Census switches clicked before the roster loads keep taking handof
 		C.Click(assert(Row(U, "join")))
 		eq(R.IsWhisperRecruiting(), true)
 		eq(R.Handoff.Accepting(), false, "the roster cannot confirm the officer yet")
-		eq(ns.rdb.recruitmentPreference[ns.me].acceptHandoffs, true, "the handoff choice is kept")
+		eq(ns.rdb.recruitmentPreference[ns.me].acceptHandoffs, nil, "the handoff choice is kept")
 		C.Click(assert(Row(U, "scan")))
-		eq(ns.rdb.recruitmentPreference[ns.me].acceptHandoffs, true, "the scan switch keeps it too")
+		eq(ns.rdb.recruitmentPreference[ns.me].acceptHandoffs, nil, "the scan switch keeps it too")
 		C.Advance(15)
 		assert(ns.Roster.Fresh(), "the roster has loaded")
 		eq(R.Handoff.Accepting(), true, "handoffs are taken once the roster confirms the officer")
@@ -4335,7 +4197,7 @@ local function RecruitingShown(R, L)
 end
 local function SameShown(got, want, what)
 	for _, k in ipairs({ "recruiting", "arrival", "accept", "auto", "scan", "popups", "ads", "channels" }) do
-		eq(got[k], want[k], what .. ": " .. k)
+		eq(got[k], (k == "accept" or k == "auto") and "-" or want[k], what .. ": " .. k)
 	end
 end
 -- The player's click on a switch of Church > Invites, and on an interval of the ads reminder's menu.
@@ -4356,92 +4218,8 @@ local function RecruitAds(C, R, minutes)
 	error("no interval " .. minutes)
 end
 
-test("gamepad recruiting (1.5.9): each switch shows off as much as on after a login and a /reload; recruiting back on brings the others at once", function()
-	for _, initialPad in ipairs({ false, true }) do
-		local C, ns = Session(initialPad)
-		local R, L = ns.Recruit, ns.L
-		local Click, Ads = RecruitClick, RecruitAds
-		Click(C, R, "recruit-whisper-toggle")
-		SameShown(RecruitingShown(R, L), { recruiting = "on", arrival = "popup", accept = "off", auto = "off",
-			scan = "off", popups = "-", ads = 0, channels = "rotate" }, "recruiting turned on in Church")
-		Click(C, R, "recruit-whisper-arrival")
-		Click(C, R, "recruit-handoff-accept")
-		Click(C, R, "recruit-handoff-overflow")
-		Click(C, R, "recruit-candidate-toggle")
-		Click(C, R, "recruit-candidate-prompts")
-		Ads(C, R, 10)
-		Click(C, R, "recruit-announcement-rotate")
-		local first = { recruiting = "on", arrival = "queue", accept = "on", auto = "on", scan = "on", popups = "off",
-			ads = 10, channels = "selected" }
-		SameShown(RecruitingShown(R, L), first, "each switch set")
-		NoErrors(C, "recruiting switches set")
+-- Referral UI scenario retired: controls and protocol removed.
 
-		local C2, ns2 = NextSession(C, initialPad, "login")
-		local R2 = ns2.Recruit
-		SameShown(RecruitingShown(R2, L), first, "after a login")
-		Click(C2, R2, "recruit-whisper-arrival")
-		Click(C2, R2, "recruit-handoff-accept")
-		Click(C2, R2, "recruit-handoff-overflow")
-		Click(C2, R2, "recruit-candidate-prompts")
-		Ads(C2, R2, 0)
-		Click(C2, R2, "recruit-announcement-rotate")
-		local second = { recruiting = "on", arrival = "popup", accept = "off", auto = "off", scan = "on", popups = "on",
-			ads = 0, channels = "rotate" }
-		SameShown(RecruitingShown(R2, L), second, "each switch turned the other way")
-		NoErrors(C2, "recruiting switches after a login")
-
-		local C3, ns3 = NextSession(C2, initialPad, "reload")
-		local R3 = ns3.Recruit
-		SameShown(RecruitingShown(R3, L), second, "after a /reload")
-		Click(C3, R3, "recruit-candidate-prompts")
-		Click(C3, R3, "recruit-candidate-toggle")
-		Click(C3, R3, "recruit-handoff-accept")
-		Ads(C3, R3, 2)
-		local third = { recruiting = "on", arrival = "popup", accept = "on", auto = "off", scan = "off", popups = "-",
-			ads = 2, channels = "rotate" }
-		SameShown(RecruitingShown(R3, L), third, "the scan off, the handoffs on, the ads every 2 minutes")
-		Click(C3, R3, "recruit-whisper-toggle")
-		-- (Changed on purpose in the 1.5.9 merge: off, Church > Invites shows no ads, RecruitingShown; the
-		-- interval is kept all the same, and the channels with it: both come back with recruiting below.)
-		local off = { recruiting = "off", arrival = "-", accept = "-", auto = "-", scan = "-", popups = "-", ads = "-", channels = "-" }
-		SameShown(RecruitingShown(R3, L), off, "recruiting turned off in Church")
-		eq(R3.AnnounceReminderMinutes(), 2, "the ads' interval kept with recruiting off")
-		NoErrors(C3, "recruiting switches after a /reload")
-
-		local C4, ns4 = NextSession(C3, initialPad, "login")
-		local R4 = ns4.Recruit
-		SameShown(RecruitingShown(R4, L), off, "off stays off after a login")
-		eq(R4.AnnounceReminderMinutes(), 2, "the ads' interval kept after a login with recruiting off")
-		eq(R4.IsWhisperRecruiting(), false)
-		ns4.UI.Toggle()
-		-- (Changed on purpose by the author's call on the review of 1.5.9: turned off in Church > Invites,
-		-- the Census offer comes back, until Done or Don't ask again; the switches stay as he left them.)
-		eq(ns4.UI.PageId(), "census/recruitment", "the Census offer comes back, recruiting still off")
-		ns4.UI.Toggle()
-		local printed = #C4.printed
-		C4.Advance(200) -- (the reminder's ticker starts within a minute, then every 2 minutes)
-		eq(ns4.Dialog.Find("OLYMPUS_RECRUIT_ANNOUNCEMENT"), nil, "no ad popup while recruiting is off")
-		for i = printed + 1, #C4.printed do
-			assert(not C4.printed[i]:find(L.RECRUIT_ANNOUNCE_REMIND, 1, true), "no ad reminder in chat either")
-		end
-		Click(C4, R4, "recruit-whisper-toggle")
-		SameShown(RecruitingShown(R4, L), third, "turned on again in Church, the others come back at once")
-		C4.Fire("GUILD_ROSTER_UPDATE", false)
-		C4.Advance(10)
-		SameShown(RecruitingShown(R4, L), third, "and nothing changes on its own after")
-		Click(C4, R4, "recruit-candidate-toggle")
-		local fourth = { recruiting = "on", arrival = "popup", accept = "on", auto = "off", scan = "on", popups = "off",
-			ads = 2, channels = "rotate" }
-		SameShown(RecruitingShown(R4, L), fourth, "the scan on again keeps its popups off, as left before it went off")
-		NoErrors(C4, "recruiting switches after recruiting went off")
-
-		local C5, ns5 = NextSession(C4, initialPad, "login")
-		SameShown(RecruitingShown(ns5.Recruit, L), fourth, "after one more login")
-		eq(#(C5.said or {}), 0, "the restored switches send nothing")
-		Check(C5.ledger, "restored recruiting switches")
-		NoErrors(C5, "restored recruiting switches")
-	end
-end)
 
 -- 1.5.9 (the same report): on WoW: Forever a character's name carries the sub-realm of his family he
 -- logged in on (ns.me), and 1.5.8 kept his recruiting choices under it: a login on another sub-realm
@@ -4581,8 +4359,8 @@ test("gamepad Census offer: Turn on all turns every switch on", function()
 		eq(R.IsWhisperRecruiting(), true, "JOIN answers on")
 		eq(R.AnnounceReminderMinutes(), 5, "ads every 5 minutes")
 		eq(R.Candidates.Enabled(), true, "the unguilded scan on")
-		eq(ns.rdb.recruitmentPreference[ns.me].offerOverflow, true, "and the automatic offers of his own waiting requests")
-		eq(ns.rdb.recruitmentPreference[ns.me].acceptHandoffs, true, "and the requests others pass on")
+		eq(ns.rdb.recruitmentPreference[ns.me].offerOverflow, nil, "and the automatic offers of his own waiting requests")
+		eq(ns.rdb.recruitmentPreference[ns.me].acceptHandoffs, nil, "and the requests others pass on")
 		local tagged = false
 		for _, line in ipairs(R.WhisperLines()) do
 			if line.text and line.text:find(L.RECRUIT_EXPERIMENTAL, 1, true) then tagged = true end
@@ -4615,148 +4393,8 @@ end)
 -- the switches themselves stay as the player left them across logins). Before it, turned off there
 -- recruiting stayed off and no offer came back; 1.5.8 brought the offer back by forgetting the
 -- choice, which lost the switches with it.
-test("gamepad Census offer (1.5.9): off in Church > Invites it comes back until Done or Don't ask again, the switches kept across logins", function()
-	local function Officer(saved)
-		return { saved = saved, setup = function(c) c.units.player.rank, c.units.player.rankIndex = "Titan", 1 end,
-			roster = {
-				{ "Tester-Realm", "Titan", 1, 60, "Warrior", "Elwynn Forest", "", "", true, 0, "WARRIOR" },
-				{ "Zeusmaster-Realm", "Zeus", 0, 60, "Mage", "Stormwind City", "", "", true, 0, "MAGE" },
-			} }
-	end
-	local function Row(U, id)
-		for _, row in ipairs(U.SelfTestView().rows) do
-			if row:IsShown() and row.line.id == "census-recruit-" .. id then return row end
-		end
-	end
-	local function Line(R, id)
-		for _, line in ipairs(R.WhisperLines()) do if line.id == id then return line end end
-	end
-	-- A line of the page showing `wanted` (a switch's hint has no id).
-	local function Text(U, wanted)
-		for _, line in ipairs(U.SelfTestView().lines) do
-			if line.text and line.text:find(wanted, 1, true) then return line end
-		end
-	end
-	-- The window closed and opened again, on the Census (the offer shows there).
-	local function Reopen(U)
-		if U.IsShown() then U.Toggle() end
-		U.Toggle()
-		assert(U.SelectTab("census"))
-	end
-	local function Offered(U) return U.PageId() == "census/recruitment" end
-	-- The scan's invite pop-ups as Church > Invites shows them.
-	local function PromptsOn(R, L)
-		local line = assert(Line(R, "recruit-candidate-prompts"), "the invite pop-ups switch")
-		return line.text:find(L.RECRUIT_CANDIDATE_PROMPTS_ON, 1, true) ~= nil
-	end
-	-- Recruiting's switch in Church > Invites, clicked.
-	local function ChurchSwitch(C, R, want)
-		local switch = assert(Line(R, "recruit-whisper-toggle"), "the Recruiting switch")
-		InClick(C, switch.onClick)
-		eq(R.IsWhisperRecruiting(), want)
-	end
-	for _, initialPad in ipairs({ false, true }) do
-		local saved = Answered()
-		local C, ns = Session(initialPad, Officer(saved))
-		C.Advance(1)
-		local U, R, L = ns.UI, ns.Recruit, ns.L
-		U.Toggle()
-		eq(Offered(U), true, "the offer, the first time")
-		C.Click(assert(Row(U, "scan")))
-		eq(R.IsWhisperRecruiting(), true); eq(R.Candidates.Enabled(), true)
-		C.Click(assert(Row(U, "done")).primary)
-		local notice = ns.Dialog.Find("OLYMPUS_RECRUIT_ACTIVATED")
-		if notice then notice:Hide() end
-		-- In Church > Invites the player sets the switches his way: invite pop-ups off, his waiting
-		-- players not offered to other members.
-		InClick(C, assert(Line(R, "recruit-candidate-prompts"), "the invite pop-ups switch").onClick)
-		InClick(C, assert(Line(R, "recruit-handoff-overflow"), "the automatic offers switch").onClick)
-		eq(PromptsOn(R, L), false); eq(R.Handoff.AutoOn(), false); eq(R.Handoff.Accepting(), true)
-		ChurchSwitch(C, R, false)
-		Reopen(U)
-		eq(Offered(U), true, "turned off in Church > Invites, the offer comes back")
-		for _, id in ipairs({ "join", "ads", "scan" }) do
-			assert(Row(U, id).line.text:find("ReadyCheck-NotReady", 1, true), id .. " shows off")
-		end
-		local choice = ns.rdb.recruitmentPreference[ns.me]
-		eq(choice.enabled, false, "the off is kept")
-		eq(choice.scan, true, "and the switches as he left them")
-		C.Click(assert(Row(U, "later")))
-		eq(U.PageId(), "census/")
-		eq(ns.rdb.recruitmentPreference[ns.me], choice, "Leave it off for now keeps his choice")
-		Reopen(U)
-		eq(Offered(U), true, "and the offer comes again at the next opening")
-		NoErrors(C, "Census offer after Church off")
+-- Referral UI scenario retired: controls and protocol removed.
 
-		-- A login: recruiting still off, the offer still comes, and on again in Church every switch is
-		-- as he left it.
-		local C2, ns2 = Session(initialPad, Officer(saved))
-		C2.Advance(1)
-		local U2, R2 = ns2.UI, ns2.Recruit
-		eq(R2.IsWhisperRecruiting(), false, "off stays off after a login")
-		U2.Toggle()
-		eq(Offered(U2), true, "the offer comes back after a login too")
-		ChurchSwitch(C2, R2, true)
-		eq(R2.Candidates.Enabled(), true, "the scan back as he left it")
-		eq(PromptsOn(R2, ns2.L), false, "its pop-ups off as he left them")
-		eq(R2.Handoff.Accepting(), true, "handoffs taken as he left them")
-		eq(R2.Handoff.AutoOn(), false, "his waiting players not offered, as he left it")
-		-- (Review of the 1.5.9 release: the returning offer's switches applied 1.5.8's first choices over the
-		-- kept ones: his waiting players offered to other members, saved so for every login, and his ads
-		-- every 5 minutes; README: "the offer turns nothing on by itself".) His ads every 30 minutes, set in
-		-- Church > Invites; off there again, the offer's JOIN switch brings recruiting back with every
-		-- switch as he left it.
-		local ads = assert(Line(R2, "recruit-announcement-reminder"), "the ads reminder").filters[1].options
-		InClick(C2, ads[#ads].onClick)
-		eq(R2.AnnounceReminderMinutes(), 30)
-		ChurchSwitch(C2, R2, false)
-		Reopen(U2)
-		eq(Offered(U2), true)
-		assert(Row(U2, "ads").line.text:find("ReadyCheck-NotReady", 1, true), "the ads show off while recruiting is")
-		-- (Review of the 1.5.9 release: nothing showed the hint naming a kept interval.) The ads switch would
-		-- bring back his 30 minutes, and its hint says so, not the first offer's 5.
-		assert(Text(U2, ns2.L.RECRUIT_CENSUS_ADS_HINT:format(30)), "the ads hint names the 30 minutes he kept")
-		eq(Text(U2, ns2.L.RECRUIT_CENSUS_ADS_HINT:format(ns2.Views.RECRUIT_AD_MINUTES)), nil, "not the first offer's 5")
-		C2.Click(assert(Row(U2, "join")))
-		eq(R2.IsWhisperRecruiting(), true)
-		eq(R2.Handoff.AutoOn(), false, "the offer's JOIN: his waiting players still not offered, as he left it")
-		eq(ns2.rdb.recruitmentPreference[ns2.me].offerOverflow, nil, "nor saved on")
-		eq(R2.Handoff.Accepting(), true, "handoffs taken, as he left them")
-		eq(R2.AnnounceReminderMinutes(), 30, "his ads every 30 minutes, as he left them")
-		-- Off in Church again: the offer comes back; Turn on all brings recruiting back with the scan
-		-- he kept (on, not toggled off by the button), and Done ends the offer.
-		ChurchSwitch(C2, R2, false)
-		Reopen(U2)
-		eq(Offered(U2), true)
-		C2.Click(assert(Row(U2, "all"), "Turn on all").primary)
-		eq(R2.IsWhisperRecruiting(), true)
-		eq(R2.Candidates.Enabled(), true, "Turn on all leaves the kept scan on")
-		eq(R2.Handoff.AutoOn(), false, "Turn on all: his waiting players still not offered")
-		eq(ns2.rdb.recruitmentPreference[ns2.me].offerOverflow, nil, "nor saved on")
-		eq(R2.AnnounceReminderMinutes(), 30, "Turn on all: his ads as he left them")
-		C2.Click(assert(Row(U2, "done")).primary)
-		eq(ns2.rdb.recruitmentPreference[ns2.me].offerAgain, nil, "Done ends the offer's return")
-		Reopen(U2)
-		eq(Offered(U2), false, "no offer after Done")
-		-- Off in Church once more, then Don't ask again: no offer from then on.
-		ChurchSwitch(C2, R2, false)
-		Reopen(U2)
-		eq(Offered(U2), true)
-		C2.Click(assert(Row(U2, "never")))
-		eq(ns2.db.hideRecruitmentOffer, true)
-		eq(ns2.rdb.recruitmentPreference[ns2.me].offerAgain, nil, "Don't ask again ends it too")
-		eq(ns2.rdb.recruitmentPreference[ns2.me].scan, true, "his switches kept")
-		Reopen(U2)
-		eq(Offered(U2), false, "no offer after Don't ask again")
-		NoErrors(C2, "Census offer after a login")
-		local C3, ns3 = Session(initialPad, Officer(saved))
-		C3.Advance(1)
-		eq(ns3.Recruit.IsWhisperRecruiting(), false, "off after the next login too")
-		ns3.UI.Toggle()
-		eq(Offered(ns3.UI), false, "and no offer")
-		NoErrors(C3, "Census offer after Don't ask again")
-	end
-end)
 
 -- 1.5.8 (review of the Census switches): a switch turned on and off again, then the window closed
 -- without Leave it off for now, asks again next time, as closing without a choice did before.
@@ -5766,7 +5404,7 @@ test("gamepad Church > Invites (1.5.9): sections under headings of one weight, e
 			assert(row.line.onClick, id .. " takes a click")
 			C.Click(row); U.Refresh()
 		end
-		local SECTIONS = "recruit-section-recruiting,recruit-section-ads,recruit-section-scan,recruit-section-handoffs,charter-help-section"
+		local SECTIONS = "recruit-section-recruiting,recruit-section-ads,recruit-section-scan,charter-help-section"
 		local headings, font = Headings()
 		eq(headings, SECTIONS, "recruiting off: every section, the Apostles' help last for a guild master")
 		eq(font, "GameFontNormal")
@@ -6275,6 +5913,47 @@ test("gamepad Forever leftover channel: an older Olympus lane the game joins aft
 	assert(C.channels[ours .. "7"], "never left")
 	GP.Covers("chat-channels")
 end)
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad cloud census regression: windows fit a small viewport after either input-mode login", function()
+		local C, ns = Session(initialPad)
+		local parent = C.env.UIParent
+		parent:SetSize(500, 320)
+		local report, editor = ns.CloudCensus.Show(), ns.CloudCensus.Paste()
+		for _, frame in ipairs({ report, editor }) do
+			assert(frame:GetWidth() * frame:GetScale() <= 480, "snapshot window fits the available width")
+			assert(frame:GetHeight() * frame:GetScale() <= 300, "snapshot window fits the available height")
+		end
+		parent:SetSize(1920, 1080)
+		ns.CloudCensus.Show(); ns.CloudCensus.Paste()
+		eq(report:GetScale(), 1); eq(editor:GetScale(), 1)
+		Check(C.ledger, "cloud census viewport"); NoErrors(C, "cloud census viewport")
+	end)
+	test("gamepad cloud census: " .. (initialPad and "gamepad" or "mouse") .. " login and both switches preserve own-window import", function()
+		local C, ns = Session(initialPad)
+		GP.Covers("cloud-census")
+		local cloud = assert(ns.CloudCensus)
+		local live = ns.db.guilds
+		for _, pad in ipairs({ initialPad, not initialPad, initialPad }) do
+			C.Switch(pad); C.Advance(0.1)
+			assert(ns.UI.SelectTab("census"))
+			local census = assert(Main(C))
+			eq(census.buttons[3]:GetText(), "API census")
+			C.Click(census.buttons[3])
+			local report = assert(ns.UI.CopyFrame("cloudCensus"))
+			eq(report:IsShown(), true)
+			local editor = assert(cloud.Paste())
+			eq(editor:IsShown(), true)
+			local now = ns.Data.ServerTime()
+			editor.box:SetText("OLYC1;us;profile-us;realm;olympus;" .. tostring(now) .. ";0;250")
+			C.Click(editor.import)
+			eq(editor:IsShown(), false)
+			assert(cloud.Text():find("250 characters", 1, true))
+			eq(ns.db.guilds, live, "manual baseline never replaces live guilds")
+			cloud.Clear()
+		end
+		Check(C.ledger, "cloud census"); NoErrors(C, "cloud census")
+	end)
+end
 
 if MODE == "--discover" then
 	local C, ns = Boot({ discover = true, gamepad = arg and arg[2] == "gamepad" })

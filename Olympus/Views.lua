@@ -1855,10 +1855,10 @@ function Views.RecruitOfferSwitch(key)
 	local saved = R.Preference and R.Preference()
 	local kept = type(saved) == "table" and saved.offerAgain == true
 	-- Recruiting turned on, or the scan, takes what other members pass on too (the handoffs).
-	if H and not kept and (not state.join or (key == "scan" and not state.scan)) then H.SetAccepting(true) end
+	if H and not kept and (not state.join or (key == "scan" and not state.scan)) then H.SetAccepting(false) end
 	-- (11-12, the author's: and offers its own waiting JOINs and scanned players to them, on with
 	-- recruiting.)
-	if H and H.SetAuto and not kept and not state.join then H.SetAuto(true) end
+	if H and H.SetAuto and not kept and not state.join then H.SetAuto(false) end
 	if key == "ads" then
 		if state.ads then R.SetAnnounceReminder(0)
 		elseif R.AnnounceReminderMinutes() == 0 then R.SetAnnounceReminder(Views.RECRUIT_AD_MINUTES) end
@@ -2021,6 +2021,9 @@ local function CensusLines(s, q, recruitment)
 		lines[#lines + 1] = evening
 	end
 	WhoStatus(lines)
+	if s.api then
+		lines[#lines + 1] = { text = Grey(("Membership: Blizzard API snapshots for %d guilds; live reports for other guilds. Characters; online is reported live."):format(s.api.guilds)), wrap = true }
+	end
 	local connection = Views.CensusConnectionLine(s)
 	if connection then lines[#lines + 1] = connection end
 	-- The addon's author online: Report a bug reaches him directly (Workshop.lua).

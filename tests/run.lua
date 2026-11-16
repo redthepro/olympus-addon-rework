@@ -166,7 +166,7 @@ end
 -- Load addon files like WoW does: each gets (addonName, sharedTable)
 ---------------------------------------------------------------------------
 local ns = {}
-for _, file in ipairs({ "Bootstrap", "Locales", "Locales/MapNamesText", "Locales/PlayerTooltipText", "Locales/deDE", "Locales/esES", "Locales/frFR", "Locales/DuesGraceText", "Locales/DuesRosterText", "Locales/JusticeResponseText", "Locales/CarryText", "Locales/CarryMergerText", "Locales/CampaignText", "Locales/GuildFinanceText", "Locales/RankingRulesText", "Locales/AccordText", "Core", "RankingRules", "GamepadRegistry", "Gamepad", "Diagnostics", "Dialog", "PlayerMenu", "Codec", "Sign", "Authority", "Zones", "Who", "Data", "Roster", "Comm", "Map", "Layers", "Hop", "Positions", "Decree", "Channels", "Filter", "MapNames", "Inspect", "PlayerTooltip", "King", "HopSightings", "Vox", "Court", "Board", "Groups", "Week", "Treasury", "Dues", "Bank", "Acts", "Loot", "War", "Crafters", "Chronicle", "Workshop", "Versions", "Builds", "Ed25519", "libs/QREncode/qrencode", "LinkLoader", "ArmyExport", "Recruit", "Locales/RecruitHandoffText", "RecruitHandoff", "PartyGuard", "AnswerBank", "Answers", "Views", "Accord", "Consent", "ChatRooms", "CraftRequests", "ViewAs", "TabardsV2", "Members", "Nominees", "CensusClean", "Bridge", "BridgeSections", "BridgePeople", "BridgeAffairs" }) do
+for _, file in ipairs({ "Bootstrap", "Locales", "Locales/MapNamesText", "Locales/PlayerTooltipText", "Locales/deDE", "Locales/esES", "Locales/frFR", "Locales/DuesGraceText", "Locales/DuesRosterText", "Locales/JusticeResponseText", "Locales/CarryText", "Locales/CarryMergerText", "Locales/CampaignText", "Locales/GuildFinanceText", "Locales/RankingRulesText", "Locales/AccordText", "Core", "RankingRules", "GamepadRegistry", "Gamepad", "Diagnostics", "Dialog", "PlayerMenu", "Codec", "Sign", "Authority", "Zones", "Who", "Data", "Roster", "Comm", "Map", "Layers", "Hop", "Positions", "Decree", "Channels", "Filter", "MapNames", "Inspect", "PlayerTooltip", "King", "HopSightings", "Vox", "Court", "Board", "Groups", "Week", "Treasury", "Dues", "Bank", "Acts", "Loot", "War", "Crafters", "Chronicle", "Workshop", "Versions", "Builds", "Ed25519", "libs/QREncode/qrencode", "LinkLoader", "ArmyExport", "Recruit", "Locales/RecruitHandoffText", "RecruitHandoff", "PartyGuard", "AnswerBank", "Answers", "Views", "Accord", "Consent", "ChatRooms", "CraftRequests", "ViewAs", "TabardsV2", "Members", "Nominees", "CensusClean", "Bridge", "BridgeSections", "BridgePeople", "BridgeAffairs", "CloudCensus" }) do
 	local chunk = assert(loadfile(ADDON_DIR .. file .. ".lua"))
 	chunk("Olympus", ns)
 end
@@ -17073,10 +17073,10 @@ test("0.9.9: the help button, left of the close button, opens the help and links
 		-- Help again: its own text and button back.
 		help:Click()
 		eq(box.text, helpText); eq(box.action:IsShown(), true)
-		-- Nothing else moved: the census still has its Report a bug button.
-		eq(main.tab, "census"); eq(main.buttons[3]:GetText(), ns.L.REPORT_BUG)
+		-- API census now has the third footer action; Report a bug remains in Help above.
+		eq(main.tab, "census"); eq(main.buttons[3]:GetText(), "API census")
 		main.buttons[3]:Click()
-		eq(box.TitleText:GetText(), ns.L.REPORT_BUG)
+		eq(OlympusCopyFrameCloudCensus.TitleText:GetText(), "Blizzard roster snapshot")
 	end) end)
 end)
 
@@ -65633,6 +65633,9 @@ assert(loadfile(ROOT .. "tests/link-loader.lua"))(ns, test, eq, { ROOT = ROOT, A
 
 print("tests/army-export.lua")
 assert(loadfile(ROOT .. "tests/army-export.lua"))(ns, test, eq, ADDON_DIR, WithUI)
+
+print("tests/cloud-census.lua")
+assert(loadfile(ROOT .. "tests/cloud-census.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR })
 
 print("tests/census-header.lua")
 assert(loadfile(ROOT .. "tests/census-header.lua"))(ns, test, eq, { WithUI = WithUI, LoadUI = LoadUI })

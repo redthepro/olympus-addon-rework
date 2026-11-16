@@ -1452,16 +1452,7 @@ function Recruit.WhisperLines()
 		Note(lines, V, L.RECRUIT_SCAN_HINT)
 		lines[#lines + 1] = { indent = 1, text = V.Gold(L.RECRUIT_WHISPER_TARGET), onClick = Recruit.PromptOutreach }
 	end
-	if Recruit.Handoff then
-		-- (Its switches need the roster to confirm this member: until it does, no section.)
-		local handoffs = {}
-		if on then Recruit.Handoff.Controls(handoffs, V, L.RECRUIT_HANDOFFS_HINT) end
-		if #handoffs > 0 or not on then
-			Section(lines, "recruit-section-handoffs", L.RECRUIT_SECTION_HANDOFFS .. " " .. L.RECRUIT_EXPERIMENTAL)
-			if not on then Note(lines, V, L.RECRUIT_SECTION_NEEDS_ON) end
-			for _, line in ipairs(handoffs) do lines[#lines + 1] = line end
-		end
-	end
+
 	return lines
 end
 
@@ -2043,17 +2034,6 @@ end
 StaticPopupDialogs["OLYMPUS_RECRUIT_INVITE_DRAFT"] = {
 	text = "%s",
 	button1 = L.RECRUIT_WHISPER_CLOSE,
-	-- Before the command reaches chat, a JOIN (and the ones waiting behind it) or a scanned player
-	-- can go to the other members who accept handoffs. Not OnCancel: Escape and replacement pass nothing.
-	button2 = L.RECRUIT_HANDOFF_PASS,
-	button2Shown = function(_, data)
-		local item = type(data) == "table" and (data.req or data.candidate) or nil
-		return item ~= nil and Recruit.Handoff ~= nil and Recruit.Handoff.CanPass(item)
-	end,
-	OnButton2 = function(_, data)
-		local item = type(data) == "table" and (data.req or data.candidate) or nil
-		if item and Recruit.Handoff then Recruit.Handoff.Pass(item, data.req ~= nil) end
-	end,
 	-- (1.5.8, the author's ask) Only a scanned player's popup offers to whisper him first: his
 	-- whisper review opens instead, and this popup comes back for him when it closes.
 	button3 = L.RECRUIT_CANDIDATE_WHISPER_FIRST,

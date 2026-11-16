@@ -217,7 +217,7 @@ local BUTTONS = {
 			-- generic row, tab, header or window-opening click (UI.Clicked below).
 			if not ns.Who.Auto() then ns.Who.Search() end
 		end },
-		{ "REPORT_BUG", function() UI.ShowBugReport() end },
+		{ "CLOUD_CENSUS", function() ns.CloudCensus.Show() end, label = function() return "API census" end },
 	},
 	realm = {
 		{ "EXPAND_ALL", function() ns.Views.ExpandAll(true); UI.Refresh() end },
@@ -1333,6 +1333,7 @@ local function CreateMain(style)
 		GameTooltip:AddLine(L.HEADER_TIP, 1, 1, 1, true)
 		-- Explain the all-server scope and the original date of a retained observation.
 		local s = ns.Data.Summary()
+		if ns.CloudCensus then s = ns.CloudCensus.Summary(s) end
 		GameTooltip:AddLine(L.CENSUS_HEADER_ALL_TIP, 0.8, 0.8, 0.8, true)
 		local header = UI.CensusHeader(s)
 		if header.note then GameTooltip:AddLine(header.note, 0.8, 0.8, 0.8, true) end
@@ -2488,6 +2489,7 @@ function UI.Refresh()
 	local started = Clock()
 	ns.SafeCall("ui refresh", function()
 		local s = ns.Data.Summary()
+		if ns.CloudCensus then s = ns.CloudCensus.Summary(s) end
 		local F = ns.FormatNumber
 		-- 1.5.2: this server's soldiers stay prominent; the smaller number combines the
 		-- accepted server snapshots. Player estimates stay on the detailed census page.
@@ -3645,6 +3647,7 @@ local function CreateMinimapButton() -- gp:minimap
 	b:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
 	b:SetScript("OnEnter", function(self)
 		local s = ns.Data.Summary()
+		if ns.CloudCensus then s = ns.CloudCensus.Summary(s) end
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT")
 		GameTooltip:AddLine(L.TITLE, 1, 0.82, 0)
 		local header = UI.CensusHeader(s)

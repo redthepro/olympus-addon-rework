@@ -3053,6 +3053,8 @@ local function Slash(input)
 			ns.Watch.Slash("tabards") -- (1.2: the Tabards are The Watch's)
 		elseif cmd == "sound" then
 			ns.SoundSlash(rest)
+		elseif cmd == "cloud" or cmd == "censusapi" then
+			ns.CloudCensus.Slash(rest)
 		elseif cmd == "alerts" then
 			ns.AlertsSlash(rest)
 		elseif cmd == "patrol" then

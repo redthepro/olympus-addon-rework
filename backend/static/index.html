@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olympus API census</title><link rel="stylesheet" href="/style.css">
+<main><header><span>OLYMPUS</span><h1>API census</h1><p>Your local companion for Blizzard guild roster snapshots.</p></header>
+<section><h2>Connection</h2><p id="connection" role="status">Checking companion…</p>
+<button id="refresh">Refresh view</button><p id="refreshed">No view loaded yet.</p>
+<p>This companion runs on your computer. Configure Blizzard developer credentials and target guilds with the local setup script.</p></section>
+<section><h2>Guilds</h2><p id="summary">Loading…</p><div class="scroll"><table><thead><tr><th>Region / namespace / realm or scope / guild</th><th>Characters</th><th>Fetched</th><th>Source updated</th><th>Status</th></tr></thead><tbody id="guilds"></tbody></table></div>
+<p id="experimental" hidden>Forever collection is experimental and uses an undocumented API path. Normal snapshots require the guild API to report the Normal ruleset. Global lookup snapshots make no ruleset claim. Layers do not change guild membership.</p>
+<p>Online counts are unavailable from this feed. Fetch time is not the time Blizzard observed a roster. Counts represent characters, not unique people.</p>
+<h3>Collection status</h3><ul id="attempts"></ul></section>
+<section><h2>Bring a snapshot into WoW</h2><ol><li>Press Prepare snapshot below.</li><li>Press Copy snapshot.</li><li>In Olympus, type <code>/oly censusapi paste</code>, paste the text, and import.</li></ol>
+<p>This is a manual baseline import. It does not stream updates or replace live online counts. Review the region, realm or lookup scope, and guild before importing.</p>
+<button id="prepare" disabled>Prepare snapshot</button> <button id="copy" disabled>Copy snapshot</button><p id="export-status" role="status">Load a roster to prepare an import.</p><textarea id="snapshot" rows="7" readonly aria-label="Addon snapshot"></textarea></section>
+</main><script src="/app.js"></script></html>
