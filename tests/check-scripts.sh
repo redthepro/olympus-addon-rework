@@ -44,6 +44,19 @@ if grep -Fq 'python must not run' "$case_root/result.txt" || [ -e "$case_root/sc
 fi
 printf 'ok: valid project, CRLF TOC, Windows separators, spaces, no addon or script execution\n'
 
+# The optional census companion must not break addon-only fixtures, and its own
+# syntax and real unittest failures must still stop the same check command.
+if command -v python3 >/dev/null 2>&1; then
+	fixture 'backend test failure'
+	mkdir -p "$case_root/backend"
+	printf 'import unittest\nclass Regression(unittest.TestCase):\n def test_failure(self): self.fail("fixture backend failed")\n' > "$case_root/backend/test_failure.py"
+	expect_failure 'backend test failure' 'fixture backend failed'
+	fixture 'backend syntax failure'
+	mkdir -p "$case_root/backend"
+	printf 'def broken(\n' > "$case_root/backend/broken.py"
+	expect_failure 'backend syntax failure' 'broken.py'
+fi
+
 fixture 'missing dependency'
 mkdir "$case_root/bin"
 ln -s "$(command -v dirname)" "$case_root/bin/dirname"
