@@ -1,14 +1,16 @@
 # Recruiting queue
 
 Church → Invites opens a single queue. Start is an explicit opt-in: it enables the
-existing in-game scan and queues JOINs without automatic invite popups. An existing
-player's popup settings remain available through Advanced; choosing Advanced exits
+existing in-game scan and automatic local invite-command popups for JOINs and scans.
+An existing player's popup settings remain available through Advanced; choosing Advanced exits
 queue mode and resumes those settings. Back returns to the queue view; Start adopts
 queue mode again. Advertising is separate and is never enabled by Start.
 
 JOINs precede untouched scanned players. A JOIN and scan for the same character
-appear once. Prepare opens the existing invite dialog, and the player still copies
-and sends the command or uses the game's invitation controls. Preparing is not
+appear once. Automatic popups are spaced at least 15 seconds apart, never replace an
+open recruiting draft, and do not take typing focus. JOINs come before scans. Each
+row is offered once; Prepare can reopen its existing invite dialog. The player still
+copies and sends the command or uses the game's invitation controls. Preparing is not
 evidence of an invitation sent or a player joining. Only the current guild's fresh
 roster confirms a join. A changed or expired candidate cannot be prepared.
 
@@ -18,8 +20,8 @@ them back. Existing duplicate filtering and seven-day decline suppression remain
 decline detection still depends on the client's supported system-message strings.
 This build does not add missing client strings to the offline fixture.
 
-Pause closes recruiting drafts, suppresses ad reminders, and stops collecting new
-scan candidates. Incoming JOINs can still wait in the queue. Preferences survive
+Pause closes recruiting drafts, stops automatic invite popups, suppresses ad
+reminders, and stops collecting new scan candidates. Incoming JOINs can still wait in the queue. Preferences survive
 reloads, but names and requests remain session-only with their existing expiry
 times. No external companion, API service, or local database is required.
 
@@ -55,7 +57,7 @@ are removed in a scratch copy, and pass with the fixes.
 ## In-game acceptance still required
 
 1. In US PvE, open Church → Invites as a member allowed to invite. Start once;
-   nearby unguilded sightings should fill the queue without popup interruptions.
+   nearby unguilded sightings should fill the queue and offer a local invite popup.
 2. Have another player whisper JOIN. It should precede an untouched scanned
    candidate, with no duplicate if that player was also scanned.
 3. Prepare, copy, paste and press Enter yourself. The panel should say prepared

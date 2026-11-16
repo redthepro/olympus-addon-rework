@@ -3,6 +3,8 @@ local R, L = ns.Recruit, ns.L
 local P = {}
 R.Panel = P
 local current, owner, advanced
+local promptOwner, promptAt
+P.PROMPT_GAP = 15
 
 local function Changed() ns.Fire("RECRUIT_CHANGED") end
 
@@ -103,19 +105,48 @@ function P.Current()
 	-- an untouched scan, but never replaces a draft the player is already using.
 	if current and current.panelDone then current = nil end
 	if current and current.scanned and not current.invitePrepared and queue[1] and not queue[1].scanned
-		and not R.CandidatePromptOpen(current) then current = nil end
+		and not queue[1].invitePrepared and not R.CandidatePromptOpen(current) then current = nil end
 	current = current or queue[1]
 	return current, #queue
 end
 
-function P.Prepare(item)
+function P.Prepare(item, automatic)
 	if not item or item ~= P.Current() then return false end
 	local state = P.Status(item)
 	if state ~= "ready" and state ~= "prepared" then return false end
-	if ns.Dialog and ns.Dialog.Find and ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT") then return false end
-	local shown = item.scanned and R.CopyCandidateInvite(item) or (not item.scanned and R.Accept(item))
+	local draft = ns.Dialog and ns.Dialog.Find and ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT")
+	if draft then return draft.data and (draft.data.req == item or draft.data.candidate == item) or false end
+	local shown = item.scanned and R.CopyCandidateInvite(item, automatic) or (not item.scanned and R.Accept(item, automatic))
 	if shown then item.invitePrepared = true; Changed() end
 	return shown == true
+end
+
+-- Automatic copy drafts are local to this recruiter. The existing scan ticker and
+-- incoming JOIN events drive them; no added timer, transport message or native invite.
+-- Never replace an open draft, steal typing focus, or repeatedly prompt the same row.
+function P.Prompt()
+	local saved = R.Preference()
+	if not saved or not saved.panelQueue or not R.IsWhisperRecruiting() or Busy() then return false end
+	if not ns.Dialog or ns.Dialog.missing or ns.KeyboardFocus() then return false end
+	if promptOwner ~= saved then promptOwner, promptAt = saved, nil end
+	if promptAt and GetTime() - promptAt < P.PROMPT_GAP then return false end
+	for _, id in ipairs({ "OLYMPUS_RECRUIT_INVITE_DRAFT", "OLYMPUS_RECRUIT_REPLY",
+		"OLYMPUS_RECRUIT_OUTREACH", "OLYMPUS_RECRUIT_ANNOUNCEMENT", "OLYMPUS_RECRUIT_NETOFF" }) do
+		if ns.Dialog.Find(id) then return false end
+	end
+	for _, item in ipairs(P.Queue()) do
+		if not item.panelPrompted and not item.invitePrepared and P.Status(item) == "ready" then
+			owner, current = saved, item
+			if P.Prepare(item, true) then
+				item.panelPrompted = true
+				promptAt = GetTime()
+				return true
+			end
+			-- A moderation warning also owns the screen; do not replace it with a scan.
+			return false
+		end
+	end
+	return false
 end
 
 function P.Next(item)

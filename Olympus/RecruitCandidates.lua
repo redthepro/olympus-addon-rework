@@ -212,7 +212,11 @@ local function Tick()
 	if #rows ~= before then Change() end
 	-- (1.5.8, the author's ask) Only the invite popup comes on its own; a whisper is its
 	-- "Whisper them first" button's, or the list's.
-	if (R.Preference() or {}).panelQueue or not prompts or quiet or not ns.Dialog or ns.Dialog.missing then return end
+	if (R.Preference() or {}).panelQueue then
+		if not quiet and R.Panel then R.Panel.Prompt() end
+		return
+	end
+	if not prompts or quiet or not ns.Dialog or ns.Dialog.missing then return end
 	for _, which in ipairs(blockingDrafts) do if ns.Dialog.Find(which) then return end end
 	-- (1.5.8) At the invite limit with the automatic offers on, new sightings go to other members.
 	local H = R.Handoff

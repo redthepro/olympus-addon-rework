@@ -1890,7 +1890,7 @@ end
 local function AcceptRequest(req, confirmed, automatic)
 	if not CurrentRequest(req) then return false end
 	if confirmed and (confirmed.name ~= req.name or confirmed.guild ~= req.guild) then return false end
-	local prepare = req.viaWhisper or ns.OnForever()
+	local prepare = automatic or req.viaWhisper or ns.OnForever()
 	local invite
 	if not prepare then
 		invite = (C_GuildInfo and C_GuildInfo.Invite) or GuildInvite -- gp:roster-actions
@@ -1927,7 +1927,7 @@ end
 
 -- An officer's yes: a current individual net-off word first asks for an explicit choice. It
 -- never declines a guild request, changes a block/ignore list or takes a native invite back.
-function Recruit.Accept(req) return AcceptRequest(req) == true end
+function Recruit.Accept(req, automatic) return AcceptRequest(req, nil, automatic) == true end
 
 StaticPopupDialogs["OLYMPUS_RECRUIT_NETOFF"] = {
 	text = "%s",
@@ -2130,6 +2130,12 @@ end
 -- Offer each valid queued reply once, in order. When the player is busy, only one retry
 -- waits, and only while there is a reply left to show.
 PromptReply = function()
+	-- The streamlined mode shares one local popup scheduler for JOINs and scans.
+	-- It never offers a pending player to another guild member.
+	if (Recruit.Preference() or {}).panelQueue then
+		if Recruit.Panel then Recruit.Panel.Prompt() end
+		return
+	end
 	if not Recruiting() or QueueOnly() or not ns.Dialog or ns.Dialog.missing then return end
 	local now, req = ns.Now(), nil
 	Prune(now)

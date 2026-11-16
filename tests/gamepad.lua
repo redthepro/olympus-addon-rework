@@ -5990,7 +5990,7 @@ test("gamepad unified recruiting panel: priority, pause, stale actions and both 
 		C.Fire("CHAT_MSG_WHISPER", "JOIN", "Applicant-Realm")
 		eq(#R.requests, 1, "repeated JOIN is deduplicated")
 		local req = assert(P.Current()); eq(req.name, "Applicant-Realm", "JOIN before an untouched scan")
-		eq(Draft(), nil, "no automatic JOIN popup in unified mode")
+		assert(Draft(), "JOIN automatically opens a local invite command in unified mode")
 		R.Candidates.ObserveWho("Applicant-Realm", "", "Human")
 		eq(#P.Queue(), 2, "the same applicant's scan does not duplicate his JOIN")
 		Click("recruit-panel-prepare")
@@ -6125,4 +6125,67 @@ test("gamepad unified recruiting waiting states: combat, invite cooldown and pau
 	P.Next(req)
 	eq(P.Prepare(nil), false); eq(P.Next(nil), false, "an empty queue has no action")
 	Check(C.ledger, "unified recruiting waits"); NoErrors(C, "unified recruiting waits")
+end)
+
+
+test("gamepad unified recruiting automatic popups stay local, pause and prioritize JOINs", function()
+	for _, initialPad in ipairs({ false, true }) do
+		local saved = Answered()
+		local C, ns = Session(initialPad, { saved = saved })
+		local R, P = ns.Recruit, ns.Recruit.Panel
+		ns.EVERY_SPREAD = 0
+		C.units.target = { name = "LocalCandidate", realm = "Realm", guid = "Player-1-205" }
+		InClick(C, P.Start)
+		local said, sent = #(C.said or {}), #C.sent
+		local function Draft() return ns.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT") end
+		local chat = C.env.ChatFrame1EditBox
+		chat:Show(); chat:SetText("a message in progress"); C.focus = chat
+		C.Advance(15.1)
+		eq(Draft(), nil, "automatic popup waits while the recruiter is typing")
+		eq(C.focus, chat, "typing focus is preserved")
+		chat:Hide(); C.focus = nil
+		C.Advance(15.1)
+		local draft = assert(Draft(), "scan automatically offers the invite command")
+		eq(draft.editBox:GetText(), "/ginvite LocalCandidate")
+		eq(draft.editBox:HasFocus(), true, "when idle, the selected command is ready for Ctrl-C")
+		eq(P.Current(), draft.data.candidate, "panel follows the automatically offered candidate")
+		C.Fire("CHAT_MSG_WHISPER", "JOIN", "FirstJoin-Realm")
+		C.units.nameplate2 = { name = "SecondCandidate", realm = "Realm", guid = "Player-1-206" }
+		C.Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+		C.Advance(15.1)
+		eq(Draft(), draft, "a JOIN does not replace a command still on screen")
+		draft:Hide()
+		C.Advance(15.1)
+		draft = assert(Draft(), "queued JOIN gets the next automatic popup")
+		eq(draft.editBox:GetText(), "/ginvite FirstJoin", "JOIN precedes the second scanned candidate")
+		eq(P.Current(), draft.data.req)
+		P.Pause()
+		eq(Draft(), nil, "Pause closes the popup")
+		C.Fire("CHAT_MSG_WHISPER", "JOIN", "PausedJoin-Realm")
+		C.Switch(not initialPad); C.Advance(30.1)
+		eq(Draft(), nil, "Pause prevents timer and incoming JOIN popups through a switch")
+		InClick(C, P.Start)
+		C.Advance(15.1)
+		draft = assert(Draft(), "Resume offers the JOIN that waited")
+		eq(draft.editBox:GetText(), "/ginvite PausedJoin")
+		draft:Hide(); C.Advance(15.1)
+		draft = assert(Draft(), "remaining scanned candidate follows the JOINs")
+		eq(draft.editBox:GetText(), "/ginvite SecondCandidate")
+		draft:Hide(); C.Advance(15.1)
+		eq(Draft(), nil, "the same rows are not offered repeatedly")
+		eq(#(C.said or {}), said, "automatic recruitment sends no chat to candidates or guildmates")
+		for i = sent + 1, #C.sent do
+			assert(not C.sent[i][2]:find("J4~", 1, true), "no referral, claim or handoff packet")
+		end
+		eq(R.Handoff.Accepting(), false); eq(R.Handoff.AutoOn(), false)
+		P.Pause(); C.Switch(initialPad); C.Advance(1)
+		local reloaded, nextNS = Session(initialPad, { saved = saved })
+		reloaded.Fire("CHAT_MSG_WHISPER", "JOIN", "AfterReload-Realm")
+		eq(nextNS.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"), nil, "paused reload still suppresses popups")
+		InClick(reloaded, nextNS.Recruit.Panel.Start)
+		reloaded.Advance(16)
+		assert(nextNS.Dialog.Find("OLYMPUS_RECRUIT_INVITE_DRAFT"), "saved queue mode resumes local popups")
+		Check(C.ledger, "local recruitment popups"); NoErrors(C, "local recruitment popups")
+		Check(reloaded.ledger, "local recruitment reload"); NoErrors(reloaded, "local recruitment reload")
+	end
 end)
