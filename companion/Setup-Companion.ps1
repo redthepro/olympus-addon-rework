@@ -12,6 +12,8 @@ param(
 $ErrorActionPreference = 'Stop'
 if ([Environment]::OSVersion.Platform -ne 'Win32NT') { throw 'This setup uses Windows credential protection.' }
 Write-Host 'Olympus API census: local companion setup'
+Write-Host 'Forever API collection is disabled pending official Blizzard documentation. Use the live addon census for Forever.'
+Write-Host 'Accept Blizzard API terms when registering your application. Never share or bundle its secret.'
 Write-Host 'Create your own application at https://develop.battle.net/access/clients .'
 Write-Host 'Public roster access uses application credentials; no player login or RDS is needed.'
 $path = Join-Path $StateDirectory 'settings.json'

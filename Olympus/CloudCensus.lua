@@ -72,7 +72,29 @@ function Cloud.Parse(text, now)
 	return ParseSnapshot(text, now, false)
 end
 
+-- Delete expired saved data, rather than merely excluding it from display.
+-- Run on login and periodically, even if the census window is never opened.
+function Cloud.Purge()
+	local now = Clock()
+	if not now or not ns.db or ns.db.cloudCensus == nil then return end
+	local rows = ParseSnapshot(ns.db.cloudCensus, now, true)
+	if not rows then ns.db.cloudCensus = nil; return end
+	for _, row in ipairs(rows) do
+		if now - row.fetched >= 29 * 86400 then
+			-- Discard the complete manual import if any constituent reaches its TTL.
+			ns.db.cloudCensus = nil
+			return
+		end
+	end
+end
+
+ns.On("LOGIN", function()
+	Cloud.Purge()
+	ns.Every(60, "API snapshot retention", Cloud.Purge)
+end)
+
 function Cloud.Import(text)
+	Cloud.Purge()
 	local now = Clock()
 	local rows, reason, expired = Cloud.Parse(text, now)
 	if not rows then return false, reason end
@@ -86,6 +108,7 @@ function Cloud.Import(text)
 	-- export remove a newer saved copy of that same guild.
 	local incoming = ParseSnapshot(text, now, true)
 	for _, row in ipairs(incoming) do
+		if now - row.fetched >= 29 * 86400 then return false, "Snapshot exceeds the retention limit." end
 		local previous = byKey[row.key]
 		if previous and (row.fetched < previous.fetched or row.modified < previous.modified
 			or ((row.modified == previous.modified and (row.modified > 0 or row.fetched == previous.fetched))
@@ -105,6 +128,7 @@ function Cloud.Clear()
 end
 
 function Cloud.Text()
+	Cloud.Purge()
 	local lines = {
 		"Blizzard roster snapshot - imported from the desktop companion; not authenticated by the addon.",
 		"Matching Forever region/ruleset counts feed Census membership; live presence stays separate.",
@@ -230,6 +254,7 @@ end
 -- Display-only overlay: imported membership never becomes a reporter vote, a relay
 -- observation, guild verification, or permission evidence.
 function Cloud.Summary(s)
+	Cloud.Purge()
 	local now = Clock()
 	if not now then return s end
 	local region = type(ns.realm) == "string" and ns.realm:match("^CAMWOW(%u%u)%d+Realm")

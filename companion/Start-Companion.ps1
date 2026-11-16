@@ -16,6 +16,7 @@ foreach ($name in $variables) { $saved[$name] = [Environment]::GetEnvironmentVar
 $port = 0
 if (-not [int]::TryParse([string]$config.port, [ref]$port) -or $port -lt 1024 -or $port -gt 65535) { throw 'Invalid local port.' }
 Write-Host ('Olympus local companion: http://127.0.0.1:' + $port)
+Write-Host 'Forever API collection is disabled pending official documentation; existing live addon census still works.'
 Write-Host 'Keep this window open. Press Ctrl+C to stop. No inbound port forwarding is needed.'
 # Python opens the browser after binding the listener. A failed or duplicate
 # launch cannot send the user to a dead page or an unrelated local service.

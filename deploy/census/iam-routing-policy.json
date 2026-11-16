@@ -1,0 +1,49 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectExistingRouting",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "ec2:DescribeSecurityGroups"
+      ],
+      "Resource": "*",
+      "Condition": {"StringEquals": {"aws:RequestedRegion": "us-east-1"}}
+    },
+    {
+      "Sid": "ManageDedicatedCensusTarget",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:DeleteTargetGroup",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:DeregisterTargets",
+        "elasticloadbalancing:AddTags"
+      ],
+      "Resource": "arn:aws:elasticloadbalancing:us-east-1:268166952453:targetgroup/olympus-census-*/*"
+    },
+    {
+      "Sid": "AddCensusRoute",
+      "Effect": "Allow",
+      "Action": ["elasticloadbalancing:CreateRule"],
+      "Resource": "arn:aws:elasticloadbalancing:us-east-1:268166952453:listener/app/olympus-v-org/da234d154937bc40/*"
+    },
+    {
+      "Sid": "RemoveCreatedRuleForRollback",
+      "Effect": "Allow",
+      "Action": ["elasticloadbalancing:DeleteRule"],
+      "Resource": "arn:aws:elasticloadbalancing:us-east-1:268166952453:listener-rule/app/olympus-v-org/da234d154937bc40/*/*"
+    },
+    {
+      "Sid": "CensusPortFromLoadBalancer",
+      "Effect": "Allow",
+      "Action": ["ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress"],
+      "Resource": "arn:aws:ec2:us-east-1:268166952453:security-group/sg-069c818072c05e1be"
+    }
+  ]
+}

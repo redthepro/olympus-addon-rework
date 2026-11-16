@@ -13,6 +13,7 @@ class Database:
     def connect(self, immediate=False):
         raw = sqlite3.connect(self.location, timeout=10)
         try:
+            raw.execute('PRAGMA secure_delete=ON')
             if immediate:
                 raw.execute('BEGIN IMMEDIATE')
             with raw:

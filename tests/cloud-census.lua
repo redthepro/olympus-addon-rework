@@ -8,6 +8,22 @@ local function Row(guild, fetched, modified, characters)
 		modified or 0, characters or 300 }, ";")
 end
 
+test("cloud census: retention deletes saved snapshots rather than only hiding them", function()
+	local previousClock, previousDB = ns.Data.ServerTime, ns.db
+	ns.Data.ServerTime = function() return NOW end
+	ns.db = { cloudCensus = Row() }
+	local ok, reason = pcall(function()
+		C.Text(); assert(ns.db.cloudCensus)
+		ns.Data.ServerTime = function() return NOW + 29 * 86400 end
+		C.Text(); eq(ns.db.cloudCensus, nil)
+		ns.Data.ServerTime = function() return NOW end
+		eq(C.Import(Row() .. "\n" .. Row("old", NOW - 29 * 86400)), false)
+		eq(ns.db.cloudCensus, nil)
+	end)
+	ns.Data.ServerTime, ns.db = previousClock, previousDB
+	if not ok then error(reason, 0) end
+end)
+
 test("cloud census: bounded parser rejects malformed, duplicate, future and expired rows", function()
 	local rows = assert(C.Parse(Row() .. "\r\n", NOW))
 	eq(#rows, 1); eq(rows[1].characters, 300); eq(rows[1].modified, 0)

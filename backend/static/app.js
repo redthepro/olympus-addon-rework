@@ -2,6 +2,7 @@
 const $ = id => document.getElementById(id);
 const date = n => n ? new Date(n * 1000).toLocaleString() : 'Unknown';
 const collectionErrors = {
+  UnsupportedNamespace: 'Collection disabled: this namespace has no verified official API documentation. Use the live addon census for Forever.',
   RulesetMismatch: 'Guild API did not confirm Normal ruleset; previous snapshot retained.',
   'HTTPError:401': 'Blizzard authentication failed. Check developer credentials.',
   'HTTPError:403': 'Blizzard denied access. Check credentials, region and API availability.',

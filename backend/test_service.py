@@ -92,7 +92,7 @@ class Tests(unittest.TestCase):
     def test_stale_fetch_is_explicit(self):
         self.store.save(KEY, roster(1), formatdate(time.time(), usegmt=True))
         with self.store.connect() as db:
-            db.execute('UPDATE snapshots SET fetched=0')
+            db.execute('UPDATE snapshots SET fetched=?', (time.time() - 3600,))
         row = self.store.census()['guilds'][0]
         self.assertTrue(row['fetch_stale'])
         self.assertFalse(row['source_stale'])
@@ -246,6 +246,8 @@ class Tests(unittest.TestCase):
             with self.subTest(part=part), self.assertRaises(ValueError):
                 self.store.save(key, payload)
 
+    # Synthetic adapter test only; production blocks this undocumented namespace.
+    @patch('service.DOCUMENTED_PROFILES', frozenset({'profile-forever-us'}))
     def test_forever_request_uses_realmless_endpoint(self):
         calls = []
         def opener(request, timeout):
@@ -259,6 +261,8 @@ class Tests(unittest.TestCase):
         self.store.save('us/profile-forever-us/global/olympus', payload, modified)
         self.assertEqual(self.store.census()['guilds'][0]['characters'], 1)
 
+    # Synthetic adapter test only; production blocks this undocumented namespace.
+    @patch('service.DOCUMENTED_PROFILES', frozenset({'profile-forever-us'}))
     def test_normal_summary_precedes_roster_and_persists_evidence(self):
         calls = []
         summary = {'id': 80, 'name': 'Olympus', 'slug': 'olympus',
@@ -280,6 +284,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(row['characters'], 2)
         self.assertTrue(row['experimental'])
 
+    # Synthetic adapter test only; production blocks this undocumented namespace.
+    @patch('service.DOCUMENTED_PROFILES', frozenset({'profile-forever-us'}))
     def test_each_forever_ruleset_is_verified_and_wrong_scope_rejected(self):
         for scope, label in [('pvp', 'PvP'), ('roleplay', 'Roleplay'), ('roleplay-pvp', 'Roleplay PvP')]:
             def opener(request, timeout):
@@ -295,6 +301,8 @@ class Tests(unittest.TestCase):
             with self.assertRaises(RulesetMismatch):
                 self.store.save('us/profile-forever-us/normal/olympus', payload, modified)
 
+    # Synthetic adapter test only; production blocks this undocumented namespace.
+    @patch('service.DOCUMENTED_PROFILES', frozenset({'profile-forever-us'}))
     def test_normal_missing_or_wrong_ruleset_stops_before_roster(self):
         for ruleset in (None, {}, {'id': 123, 'name': 'PvP'}, {'id': 123, 'name': 'PvE'},
                         {'id': True, 'name': 'Normal'}, {'id': 0, 'name': 'Normal'}):
@@ -308,6 +316,8 @@ class Tests(unittest.TestCase):
                 client.roster(['us', 'profile-forever-us', 'normal', 'olympus'])
             self.assertEqual(len(calls), 1)
 
+    # Synthetic adapter test only; production blocks this undocumented namespace.
+    @patch('service.DOCUMENTED_PROFILES', frozenset({'profile-forever-us'}))
     def test_normal_summary_and_roster_identity_must_match(self):
         for mismatch in ('id', 'slug'):
             def opener(request, timeout):
@@ -340,7 +350,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(census['guilds'][0]['ruleset']['id'], 123)
         self.assertEqual(census['attempts'][0]['error'], 'RulesetMismatch')
 
-    def test_active_targets_hide_previous_scope_without_deleting_cache(self):
+    def test_active_targets_delete_previous_scope_cache(self):
         normal = ['us', 'profile-forever-us', 'normal', 'olympus']
         global_target = ['us', 'profile-forever-us', 'global', 'olympus']
         payload = forever_roster(1)
@@ -353,7 +363,7 @@ class Tests(unittest.TestCase):
         empty = Store(self.store.path, targets=[]).census()
         self.assertEqual(empty['guilds'], [])
         self.assertEqual(empty['attempts'], [])
-        self.assertEqual(len(self.store.census()['guilds']), 2)
+        self.assertEqual(len(self.store.census()['guilds']), 0)
 
     def test_target_slugs_match_export_limits(self):
         namespace = 'profile-' + 'a' * 53 + '-us'

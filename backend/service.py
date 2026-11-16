@@ -13,6 +13,15 @@ import urllib.parse
 import urllib.request
 from database import Database
 
+# Only documented roster namespaces may reach the network. Forever remains
+# disabled until Blizzard publishes its contract; there is no environment bypass.
+DOCUMENTED_PROFILES = frozenset('profile-' + region for region in ('us', 'eu', 'kr', 'tw'))
+RETENTION_SECONDS = 29 * 86400  # margin below Blizzard's 30-day maximum
+
+
+class UnsupportedNamespace(ValueError):
+    pass
+
 
 def validate_target(target):
     if not isinstance(target, (list, tuple)) or len(target) != 4:
@@ -108,6 +117,7 @@ class Store:
     def __init__(self, path, targets=None):
         self.path = path
         self.database = Database(path)
+        self.ready = False
         self.active_targets = None if targets is None else tuple('/'.join(validate_target(target)) for target in targets)
         if self.active_targets is not None and len(self.active_targets) > 256:
             raise ValueError('Too many active census targets')
@@ -127,11 +137,36 @@ class Store:
                 db.execute('ALTER TABLE snapshot_meta ADD COLUMN ruleset_id BIGINT')
             if 'ruleset_name' not in metadata_columns:
                 db.execute('ALTER TABLE snapshot_meta ADD COLUMN ruleset_name TEXT')
+        self.ready = True
+        self.purge()
 
     @contextmanager
     def connect(self):
         with self.database.connect() as db:
+            if self.ready:
+                self._purge(db)
             yield db
+
+    def _purge(self, db):
+        now = time.time()
+        db.execute('DELETE FROM snapshots WHERE fetched IS NULL OR fetched <= ? OR fetched > ?',
+                   (now - RETENTION_SECONDS, now + 60))
+        db.execute('DELETE FROM attempts WHERE attempted IS NULL OR attempted <= ?', (now - RETENTION_SECONDS,))
+        if self.active_targets is not None:
+            placeholders = ','.join('?' for _ in self.active_targets) or 'NULL'
+            for table in ('snapshots', 'attempts'):
+                db.execute('DELETE FROM ' + table + ' WHERE target NOT IN (' + placeholders + ')' if self.active_targets
+                           else 'DELETE FROM ' + table, self.active_targets)
+        db.execute('DELETE FROM snapshot_meta WHERE target NOT IN (SELECT target FROM snapshots)')
+
+    def purge(self):
+        with self.connect():
+            pass
+
+    def forget(self, key):
+        with self.connect() as db:
+            for table in ('snapshots', 'snapshot_meta', 'attempts'):
+                db.execute('DELETE FROM ' + table + ' WHERE target=?', (key,))
 
     def save(self, key, payload, modified=None):
         region, namespace, realm_slug, guild_slug = validate_target(key.split('/'))
@@ -298,10 +333,22 @@ class Blizzard:
         self.token = None
         self.expires = 0
         self.rate_limited_until = 0
-        self.opener = opener or urllib.request.build_opener(NoRedirect()).open
+        self._opener = opener or urllib.request.build_opener(NoRedirect()).open
+        self.request_lock = threading.Lock()
+        self.next_request = 0
+
+    def opener(self, request, timeout):
+        # Bound bursts as well as honoring HTTP 429. OAuth and roster requests
+        # share the same ten-per-second ceiling within this collector.
+        with self.request_lock:
+            time.sleep(max(0, self.next_request - time.monotonic()))
+            self.next_request = time.monotonic() + 0.1
+            return self._opener(request, timeout=timeout)
 
     def roster(self, target):
         region, namespace, realm, guild = validate_target(target)
+        if namespace not in DOCUMENTED_PROFILES:
+            raise UnsupportedNamespace('API namespace is not enabled: awaiting official Blizzard documentation')
         if time.time() >= self.expires:
             pair = os.environ['BNET_CLIENT_ID'] + ':' + os.environ['BNET_CLIENT_SECRET']
             request = urllib.request.Request('https://oauth.battle.net/token',
@@ -380,6 +427,8 @@ def sync_once(store, client, targets, stop_event=None):
         except Exception as error:
             # Do not persist exception text: it can contain URLs or credentials.
             try:
+                if isinstance(error, UnsupportedNamespace) or getattr(error, 'code', None) in (403, 404, 410):
+                    store.forget(key)
                 delay = store.failure(key, type(error).__name__ + (':' + str(error.code) if hasattr(error, 'code') else ''), retry_after_seconds(error),
                                       global_limit=getattr(error, 'code', None) == 429)
                 if getattr(error, 'code', None) == 401:
@@ -492,6 +541,14 @@ class Poller:
                     if remaining <= 0:
                         break
                     self.stop_event.wait(min(remaining, 60))
+                    try:
+                        self.store.purge()  # also when collection is disabled/backing off
+                    except Exception as error:
+                        # A storage outage fails reads closed, but must not kill
+                        # the worker permanently; retry at the next wakeup.
+                        with self.lock:
+                            self.last_error = type(error).__name__
+                            self.state = 'error'
         finally:
             with self.lock:
                 self.state = 'stopped'

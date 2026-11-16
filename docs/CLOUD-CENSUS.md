@@ -1,5 +1,12 @@
 # Blizzard API census snapshots
 
+**Current restriction:** Forever API requests are disabled until official
+Blizzard documentation establishes the endpoint contract. The live addon census
+continues to work. The instructions below describe the import mechanism and
+future Forever acceptance checks, not an enabled Forever collection service.
+Read [policy review and data deletion](BLIZZARD-POLICY.md), including the 29-day
+cache lifetime and responsibility to delete inactive copies/backups.
+
 The Census window's **API census** button (or `/oly censusapi`) opens the
 **Blizzard roster snapshot** view. **Paste snapshot** accepts the snapshot copied
 from the local Olympus desktop companion. `/oly censusapi paste` opens the editor

@@ -62,8 +62,12 @@ local source = assert(io.open(arg[1], "rb"))
 local text = source:read("*a"); source:close()
 local now = 1800000000
 local live = { Olympus = { total = 500, online = 25 } }
-local ns = { db = { guilds = live }, Data = { ServerTime = function() return now end } }
+local login
+local ns = { db = { guilds = live }, Data = { ServerTime = function() return now end },
+    On = function(event, callback) assert(event == "LOGIN"); login = callback end,
+    Every = function(seconds, label, callback) assert(seconds == 60 and type(callback) == "function") end }
 assert(loadfile(arg[2]))("Olympus", ns)
+assert(login); login()
 local cloud = assert(ns.CloudCensus)
 local rows = assert(cloud.Parse(text, now))
 assert(#rows == 4, "all database snapshots reach Lua")

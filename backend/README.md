@@ -1,5 +1,14 @@
 # Olympus local API census companion
 
+For a guild-wide installation, use the [hosted service](../deploy/census/README.md).
+It keeps credentials server-side and lets members copy a snapshot from the guild
+website without running this local companion or registering API clients.
+
+**Forever fetching is disabled pending official Blizzard API documentation.**
+The US PvE target can stay configured, but it will report `UnsupportedNamespace`
+without making requests. Use the live addon census in the meantime; do not
+substitute a retail target for a Forever guild. Read [policy and privacy](../docs/BLIZZARD-POLICY.md).
+
 The companion runs on your PC, reads Blizzard's public guild roster API, and caches
 the last successful snapshots in a local SQLite file. No hosted server, RDS,
 shared database, or router forwarding is required. WoW cannot make web requests;
@@ -25,7 +34,7 @@ Requires Windows PowerShell 5.1+ and Python 3.10+ on PATH. No third-party Python
    API census → Paste snapshot**, or type `/oly censusapi paste`. Review and import.
    `/oly cloud paste` remains an alias. No reload is required for import.
 
-The experimental Forever adapter uses `profile-forever-{region}`, the realm-less
+The disabled experimental Forever adapter describes `profile-forever-{region}`, the realm-less
 `/data/wow/guild/{guildSlug}/roster` route. With a ruleset scope (`normal`, `pvp`, `roleplay`, or `roleplay-pvp`), it also fetches the
 guild summary and requires its ruleset name to match the selected scope and its guild ID to match
 the roster. No numeric ruleset ID is assumed. Layers do not create separate counts.
@@ -33,7 +42,7 @@ The alternative `global` scope does not enforce a ruleset. These routes follow
 firsthand community observations, not confirmed Blizzard documentation. The usual
 realm-qualified endpoint remains separate for other namespaces.
 
-Forever API support must be verified against your actual target. No real Forever roster has been
+Forever API support must first be documented by Blizzard, then verified against your actual target. No real Forever roster has been
 validated without credentials and a selected guild; synthetic tests do not prove
 live coverage. Unsupported guilds cannot be counted authoritatively by this tool.
 
@@ -51,6 +60,13 @@ application. The API binds only to loopback and checks Host headers. Other proce
 running as your Windows account can access your local data.
 
 ## Data semantics
+
+Cached rosters, associated metadata and old collection attempts are deleted
+after 29 days without refresh. Removing a target deletes its cache on restart;
+403/404/410 responses delete its previous roster. Cleanup runs before reads and
+at startup, and each minute while running. The addon separately deletes expired
+imports at login and each minute. Closed apps cannot clean external files:
+delete inactive caches and exports/backups before 30 days. See the policy guide.
 
 Each complete valid response atomically replaces one guild roster. Realm/character
 IDs deduplicate members. Conflicting records, wrong scopes, older source dates, and

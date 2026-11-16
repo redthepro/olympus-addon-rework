@@ -17,6 +17,7 @@ foreach ($file in @('Setup-Companion.ps1','Start-Companion.ps1','Setup-Companion
 Copy-Item -LiteralPath (Join-Path $repo 'LICENSE') -Destination $stage
 New-Item -ItemType Directory -Path (Join-Path $stage 'docs') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repo 'docs\CLOUD-CENSUS.md') -Destination (Join-Path $stage 'docs')
+Copy-Item -LiteralPath (Join-Path $repo 'docs\BLIZZARD-POLICY.md') -Destination (Join-Path $stage 'docs')
 $zip = Join-Path $output 'OlympusCensusCompanion-windows.zip'
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
 (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash | Set-Content -LiteralPath ($zip + '.sha256')
